@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<meta name="description" content="Generated from __BOARD__ by roadmd on __GENERATED__. Do not edit by hand.">
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2026; --muted: #6b7280; --line: #e3e6ea; --accent: #2563eb;
+  --chip: #ffffff; --chip-ink: #1c2026; --fade: 0.28; --up: #2563eb; --down: #d97706; --sel: #111827;
+  --code: #eef1f5; --mark: #fff3bf;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --panel: #1c2026; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2b3038; --accent: #60a5fa;
+    --chip: #232830; --chip-ink: #e6e8eb; --sel: #f3f4f6; --code: #11141a; --mark: #4a3d10;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --panel: #1c2026; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2b3038; --accent: #60a5fa;
+  --chip: #232830; --chip-ink: #e6e8eb; --sel: #f3f4f6; --code: #11141a; --mark: #4a3d10;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, "Segoe UI", system-ui, Roboto, sans-serif; display: flex; flex-direction: column; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a { color: var(--accent); }
+header { display: flex; gap: 10px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0 8px 0 0; font-weight: 650; }
+header .sub { color: var(--muted); font-size: 12px; }
+.tabs button { padding: 6px 10px; border-radius: 6px; color: var(--muted); }
+.tabs button.on { background: var(--bg); color: var(--ink); font-weight: 600; }
+#search { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); width: 220px; }
+.filters { display: flex; gap: 4px; flex-wrap: wrap; }
+.filters button { padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.filters button.on { color: var(--ink); border-color: var(--st); box-shadow: inset 0 0 0 1px var(--st); }
+.filters button::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--st); margin-right: 6px; opacity: 0.9; }
+header .spacer { flex: 1; }
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 42%); }
+main.no-panel { grid-template-columns: minmax(0, 1fr); }
+main.no-panel #panel { display: none; }
+#panelToggle { padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; color: var(--muted); }
+#left { min-width: 0; overflow: auto; position: relative; }
+#panel { border-left: 1px solid var(--line); background: var(--panel); overflow: auto; min-width: 0; }
+
+/* board */
+.board { display: grid; min-width: max-content; }
+.board .hcell, .board .acell, .board .cell { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); }
+.board .hcell { position: sticky; top: 0; background: var(--panel); z-index: 3; padding: 8px 10px; font-weight: 600; min-width: 170px; }
+.board .hcell small { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-weight: 400; font-size: 11px; max-width: 300px; white-space: normal; }
+.board .hcell:hover small { -webkit-line-clamp: unset; }
+.board .acell { position: sticky; left: 0; background: var(--panel); z-index: 2; padding: 8px 10px; width: 150px; }
+.board .acell b { display: block; font-size: 12px; letter-spacing: 0.04em; color: var(--muted); }
+.board .acell span { font-size: 12px; }
+.board .corner { z-index: 4; }
+.board .hcell.cur { background: color-mix(in srgb, var(--accent) 16%, var(--panel)); box-shadow: inset 0 3px 0 var(--accent); }
+.board .hcell.cur .now { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: var(--accent); color: var(--panel); font-size: 10px; font-weight: 700; letter-spacing: 0.04em; vertical-align: 1px; }
+.board .cell.cur { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.board .cell { padding: 6px; display: flex; flex-direction: column; gap: 4px; align-content: flex-start; min-width: 170px; max-width: 320px; }
+.chip { display: block; width: 100%; text-align: left; padding: 3px 7px 3px 9px; border-radius: 5px; background: var(--chip); color: var(--chip-ink); border: 1px solid var(--line); border-left: 4px solid var(--st); font-size: 12px; line-height: 1.3; position: relative; }
+.chip b { font-weight: 650; font-size: 11px; opacity: 0.8; margin-right: 4px; }
+.chip.final { background: color-mix(in srgb, var(--st) 10%, var(--chip)); }
+.chip.first { border-style: dashed; border-left-style: solid; }
+.chip i { position: absolute; right: 6px; top: 3px; font-size: 10px; font-style: normal; color: var(--muted); }
+.chip:hover { border-color: var(--muted); }
+.has-sel .chip:not(.sel):not(.up):not(.down) { opacity: var(--fade); }
+.chip.sel { outline: 2px solid var(--sel); outline-offset: 1px; }
+.chip.up { box-shadow: 0 0 0 2px var(--up); }
+.chip.down { box-shadow: 0 0 0 2px var(--down); }
+.chip.hide { display: none; }
+.chip.dim { opacity: 0.18; }
+#arrows { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 1; overflow: visible; }
+#arrows path { fill: none; stroke-width: 1.6; }
+#arrows .up { stroke: var(--up); } #arrows .down { stroke: var(--down); }
+
+/* next up */
+.next { padding: 16px 20px; max-width: 980px; }
+.next h2 { font-size: 15px; margin: 18px 0 8px; }
+.next h2:first-child { margin-top: 4px; }
+.next p.lead { color: var(--muted); margin: 0 0 6px; font-size: 13px; }
+.next ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.next li.now { padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.next .ms { margin: 10px 0 4px; font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; }
+.next .row { display: flex; gap: 10px; align-items: baseline; }
+.next .row .chip { width: auto; min-width: 280px; }
+.next .row .why { color: var(--muted); font-size: 12px; }
+.idchip { display: inline-block; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); border-left: 3px solid var(--st); background: var(--chip); font-size: 12px; font-weight: 600; cursor: pointer; margin: 1px 2px 1px 0; }
+.idchip.final { opacity: 0.6; }
+
+/* panel */
+.pan { padding: 16px 18px; }
+.pan .empty { color: var(--muted); padding: 24px 0; }
+.pan .id { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+.pan h2 { margin: 2px 0 6px; font-size: 18px; line-height: 1.25; }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; background: var(--st); margin-right: 6px; vertical-align: middle; }
+.meta { color: var(--muted); font-size: 12px; margin: 4px 0 10px; }
+.meta b { color: var(--ink); font-weight: 600; }
+.sec { margin: 12px 0; }
+.sec h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 4px; font-weight: 600; }
+.sec ol { margin: 0; padding-left: 18px; }
+.sec ol li { margin: 2px 0; }
+.sec .txt { font-size: 13px; }
+.docbtn { display: inline-block; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 12px; margin: 2px 4px 2px 0; }
+.docbtn.on { border-color: var(--accent); color: var(--accent); }
+.doc { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
+.doc .crumb { font-size: 12px; color: var(--muted); margin-bottom: 6px; word-break: break-all; }
+.doc .body { font-size: 13.5px; line-height: 1.5; position: relative; max-height: calc(100vh - 140px); overflow: auto; padding: 0 10px 10px 0; border: 1px solid var(--line); border-radius: 6px; padding-left: 10px; background: var(--bg); }
+.doc .body h1 { font-size: 20px; margin: 10px 0 6px; } .doc .body h2 { font-size: 17px; margin: 18px 0 6px; } .doc .body h3 { font-size: 15px; margin: 14px 0 4px; } .doc .body h4, .doc .body h5, .doc .body h6 { font-size: 13.5px; margin: 10px 0 2px; }
+.doc .body :is(h1,h2,h3,h4,h5,h6).mark { background: var(--mark); outline: 6px solid var(--mark); border-radius: 3px; }
+.doc .body code { background: var(--code); padding: 0 4px; border-radius: 3px; font-size: 12.5px; }
+.doc .body pre { background: var(--code); padding: 8px 10px; border-radius: 6px; overflow: auto; font-size: 12px; }
+.doc .body pre code { background: none; padding: 0; }
+.doc .body blockquote { margin: 6px 0; padding: 2px 12px; border-left: 3px solid var(--line); color: var(--muted); }
+.doc .body table { border-collapse: collapse; margin: 8px 0; font-size: 12.5px; max-width: 100%; display: block; overflow: auto; }
+.doc .body th, .doc .body td { border: 1px solid var(--line); padding: 3px 8px; text-align: left; vertical-align: top; }
+.doc .body img { max-width: 100%; height: auto; border-radius: 4px; }
+.doc .body ul, .doc .body ol { padding-left: 22px; margin: 4px 0; }
+.doc .body li { margin: 2px 0; }
+.doc .body li.mark { background: var(--mark); border-radius: 3px; }
+.doc .body hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } #panel { border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>__TITLE__</h1>
+  <span class="sub">from <code>__BOARD__</code>, built __GENERATED__</span>
+  <nav class="tabs"><button id="tab-next">Overview</button><button id="tab-board">Board</button><button id="tab-doc">Documents</button></nav>
+  <input id="search" type="search" placeholder="Search id, title, note…">
+  <div class="filters" id="filters"></div>
+  <span class="spacer"></span>
+  <button id="panelToggle" title="Show or hide the details panel">Details ▸</button>
+  <button id="theme" title="Toggle light/dark">◐</button>
+</header>
+<main>
+  <div id="left"></div>
+  <aside id="panel"><div class="pan"><div class="empty">Click an item.</div></div></aside>
+</main>
+<script>
+/*__DATA__*/
+</script>
+<script>
+(() => {
+const R = window.ROADMAP, D = window.DOCS;
+const items = R.items;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const store = { get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+// ---- the states' colours (from the config): --s-<state>, with a dark variant where one is given
+const ST = Object.fromEntries(R.stateDefs.map((s) => [s.id, s]));
+{
+  const light = R.stateDefs.map((s) => `--s-${s.id}: ${s.color || "#888"};`).join(" ");
+  const dark = R.stateDefs.filter((s) => s.darkColor).map((s) => `--s-${s.id}: ${s.darkColor};`).join(" ");
+  const css = document.createElement("style");
+  css.textContent = `:root { ${light} } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${dark} } } :root[data-theme="dark"] { ${dark} }`;
+  document.head.appendChild(css);
+}
+const isFinal = (id) => items[id] && ST[items[id].state]?.final;
+const stClass = (state) => (ST[state]?.final ? " final" : "") + (state === R.states[0] ? " first" : "");
+const ID_RE = new RegExp(`\\b(?:${R.idPattern})\\b`, "g");
+const globRe = (g) => new RegExp("^" + g.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*\/?|\*|\?/g, (t) => t === "?" ? "[^/]" : t === "*" ? "[^/]*" : t === "**/" ? "(?:.*/)?" : ".*") + "$");
+const KINDS = R.docKinds.map((k) => ({ ...k, re: k.match.map(globRe) }));
+const kindOf = (p) => KINDS.find((k) => k.re.some((r) => r.test(p))) || null;
+const docName = (p) => { const k = kindOf(p); return k && k.displayName === "stem" ? p.split("/").pop().replace(/\.md$/, "") : p; };
+
+// ---- theme
+const theme = $("#theme");
+const applyTheme = (t) => { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; };
+applyTheme(store.get("theme", ""));
+theme.onclick = () => { const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); const next = cur === "dark" ? "light" : "dark"; applyTheme(next); store.set("theme", next); drawArrows(); };
+
+// ---- details panel open/closed (closed: the board gets the whole width; clicking an item opens it again)
+const mainEl = $("main"), panelToggle = $("#panelToggle");
+function setPanel(open) {
+  mainEl.classList.toggle("no-panel", !open);
+  panelToggle.textContent = open ? "Details ▸" : "◂ Details";
+  store.set("panel", open ? "open" : "closed");
+  requestAnimationFrame(() => drawArrows());
+}
+panelToggle.onclick = () => setPanel(mainEl.classList.contains("no-panel"));
+setPanel(store.get("panel", "open") !== "closed");
+addEventListener("keydown", (e) => { if (e.key === "Escape" && selected) { selected = null; history.replaceState(null, "", location.pathname + location.search); markSelection(); } });
+
+// ---- graph helpers
+const STATE_ORDER = R.boardOrder;
+function upstream(id) { // transitive dependencies, dependencies first
+  const seen = new Set(), out = [];
+  (function visit(x) { for (const d of items[x].after) { if (!items[d] || seen.has(d)) continue; seen.add(d); visit(d); out.push(d); } })(id);
+  return out;
+}
+function downstream(id) {
+  const seen = new Set(), out = [];
+  (function visit(x) { for (const d of items[x].unblocks) { if (seen.has(d)) continue; seen.add(d); out.push(d); visit(d); } })(id);
+  return out;
+}
+const msRank = Object.fromEntries(R.milestones.map((m, i) => [m.id, i]));
+msRank.C = 900; msRank[null] = 999;
+
+// ---- state
+let view = store.get("view", "next");
+let selected = null;
+let search = "";
+const activeStates = new Set(R.states);
+const left = $("#left"), panel = $("#panel");
+
+// ---- filters
+const filters = $("#filters");
+for (const s of R.states) {
+  const b = document.createElement("button");
+  b.textContent = s; b.className = "on"; b.style.setProperty("--st", `var(--s-${s})`);
+  b.onclick = (e) => {
+    if (e.altKey || e.metaKey || e.ctrlKey) { activeStates.clear(); activeStates.add(s); }
+    else if (activeStates.has(s) && activeStates.size === 1) R.states.forEach((x) => activeStates.add(x));
+    else activeStates.has(s) ? activeStates.delete(s) : activeStates.add(s);
+    for (const x of filters.children) x.classList.toggle("on", activeStates.has(x.textContent));
+    applyFilters();
+  };
+  filters.appendChild(b);
+}
+$("#search").oninput = (e) => { search = e.target.value.trim().toLowerCase(); applyFilters(); };
+const matches = (it) => activeStates.has(it.state) && (!search || `${it.id} ${it.title} ${it.text} ${it.note}`.toLowerCase().includes(search));
+function applyFilters() {
+  if (view === "board") { for (const c of left.querySelectorAll(".chip")) c.classList.toggle("dim", !matches(items[c.dataset.id])); drawArrows(); }
+  else if (view === "next") renderNext();
+}
+
+// ---- tabs
+const tabs = { next: $("#tab-next"), board: $("#tab-board"), doc: $("#tab-doc") };
+for (const [k, b] of Object.entries(tabs)) b.onclick = () => setView(k);
+function setView(v) {
+  view = v; store.set("view", v);
+  for (const [k, b] of Object.entries(tabs)) b.classList.toggle("on", k === v);
+  if (v === "board") renderBoard(); else if (v === "next") renderNext(); else renderDocIndex();
+}
+
+// ---- chips
+function chip(id, cls = "chip") {
+  const it = items[id];
+  if (!it) return `<span class="${cls}">${esc(id)}</span>`;
+  return `<button class="${cls}${stClass(it.state)}" data-id="${it.id}" style="--st:var(--s-${it.state})" title="${esc(it.title)} — ${it.state}${it.stateNote ? " (" + esc(it.stateNote) + ")" : ""}"><b>${it.id}</b>${cls === "chip" ? esc(it.title) + (it.stateNote ? `<i>${esc(it.stateNote)}</i>` : "") : ""}</button>`;
+}
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("[data-id]");
+  if (c) { if (mainEl.classList.contains("no-panel")) setPanel(true); select(c.dataset.id); return; }
+  const a = e.target.closest("a[data-doc]");
+  if (a) { e.preventDefault(); showDoc(a.dataset.doc, a.dataset.anchor || null); return; }
+  const l = e.target.closest("a[data-local]");
+  if (l) { e.preventDefault(); const h = $(".doc .body"); const t = h && (h.querySelector("#" + CSS.escape(l.dataset.local)) || findHeading(h, l.dataset.local)); if (t) flash(t); return; }
+  const d = e.target.closest("[data-opendoc]");
+  if (d) { showDoc(d.dataset.opendoc, d.dataset.anchor || null); }
+});
+
+// ---- board
+function columns() {
+  const cols = R.milestones.map((m) => ({ id: m.id, title: `${m.id} ${m.title}`, sub: (m.tag ? m.tag + ". " : "") + m.body }));
+  if (R.continuous) cols.push({ id: "C", title: "Continuous", sub: R.continuous.body });
+  if (Object.values(items).some((i) => !i.milestone)) cols.push({ id: null, title: "No milestone", sub: "ideas, parked, and done work outside a slice" });
+  return cols;
+}
+// the milestone being worked on: the first one, in order, that still has an item not done (every one before it is done)
+const currentMilestone = () => R.currentMilestone;
+function renderBoard() {
+  const cols = columns();
+  const cur = currentMilestone();
+  let h = `<div class="board" style="grid-template-columns: 150px repeat(${cols.length}, minmax(170px, 320px))">`;
+  h += `<div class="hcell acell corner"></div>` + cols.map((c) => `<div class="hcell${c.id && c.id === cur ? " cur" : ""}">${esc(c.title)}${c.id && c.id === cur ? `<span class="now">NOW</span>` : ""}<small>${esc(c.sub || "")}</small></div>`).join("");
+  for (const a of R.areas) {
+    h += `<div class="acell"><b>${a.id}</b><span>${esc(a.title)}</span></div>`;
+    for (const c of cols) {
+      const ids = a.items.filter((id) => items[id].milestone === c.id).sort((x, y) => STATE_ORDER.indexOf(items[x].state) - STATE_ORDER.indexOf(items[y].state));
+      h += `<div class="cell${c.id && c.id === cur ? " cur" : ""}">${ids.map((id) => chip(id)).join("")}</div>`;
+    }
+  }
+  h += `</div><svg id="arrows"><defs><marker id="mu" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--up)"/></marker><marker id="md" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--down)"/></marker></defs></svg>`;
+  left.innerHTML = h;
+  applyFilters(); markSelection();
+}
+function markSelection() {
+  if (view !== "board") return;
+  if (!selected) panel.innerHTML = `<div class="pan"><div class="empty">Click an item.</div></div>`;
+  const up = selected ? new Set(upstream(selected)) : new Set(), down = selected ? new Set(downstream(selected)) : new Set();
+  left.classList.toggle("has-sel", !!selected);
+  for (const c of left.querySelectorAll(".chip")) {
+    const id = c.dataset.id;
+    c.classList.toggle("sel", id === selected); c.classList.toggle("up", up.has(id)); c.classList.toggle("down", down.has(id));
+  }
+  const s = selected && left.querySelector(`.chip[data-id="${selected}"]`);
+  if (s) s.scrollIntoView({ block: "nearest", inline: "nearest" });
+  drawArrows();
+}
+function drawArrows() {
+  const svg = $("#arrows"); if (!svg || view !== "board") return;
+  const board = $(".board");
+  svg.setAttribute("width", board.scrollWidth); svg.setAttribute("height", board.scrollHeight);
+  svg.querySelectorAll("path.e").forEach((p) => p.remove());
+  if (!selected) return;
+  const base = board.getBoundingClientRect();
+  const pos = (id) => { const el = left.querySelector(`.chip[data-id="${id}"]`); if (!el || el.classList.contains("dim")) return null; const r = el.getBoundingClientRect(); return { l: r.left - base.left, r: r.right - base.left, y: r.top - base.top + r.height / 2 }; };
+  const edges = [];
+  const up = new Set([selected, ...upstream(selected)]), down = new Set([selected, ...downstream(selected)]);
+  for (const id of up) for (const d of items[id].after) if (up.has(d)) edges.push([d, id, "up"]);
+  for (const id of down) for (const d of items[id].unblocks) if (down.has(d)) edges.push([id, d, "down"]);
+  for (const [from, to, cls] of edges) {
+    const a = pos(from), b = pos(to); if (!a || !b) continue;
+    let x1, x2; if (b.l >= a.r) { x1 = a.r; x2 = b.l; } else if (a.l >= b.r) { x1 = a.l; x2 = b.r; } else { x1 = a.r; x2 = b.r; }
+    const dx = Math.max(30, Math.abs(x2 - x1) / 2);
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("d", `M${x1},${a.y} C${x1 + (x2 >= x1 ? dx : -dx)},${a.y} ${x2 - (x2 >= x1 ? dx : -dx)},${b.y} ${x2},${b.y}`);
+    p.setAttribute("class", `e ${cls}`); p.setAttribute("marker-end", cls === "up" ? "url(#mu)" : "url(#md)");
+    svg.appendChild(p);
+  }
+}
+addEventListener("resize", drawArrows);
+
+// ---- next up
+// Every list and its order come from roadmd (lists, next): the page only filters them by state and search.
+function renderNext() {
+  const open = Object.values(items).filter((i) => !isFinal(i.id) && matches(i));
+  const pick = (ids) => (ids || []).map((id) => items[id]).filter((i) => i && matches(i));
+  const byMs = (list) => {
+    const g = {};
+    for (const i of list) (g[i.milestone] ||= []).push(i);
+    return Object.entries(g).sort((a, b) => msRank[a[0]] - msRank[b[0]]).map(([ms, l]) => ({ ms, l }));
+  };
+  const msName = (ms) => ms === "C" ? "Continuous" : ms === "null" || !ms ? "No milestone" : `${ms} ${R.milestones.find((m) => m.id === ms)?.title || ""}`;
+  const impact = (i) => `unblocks ${i.immediate} now, ${i.total} in all`;
+  const row = (i, why) => `<li class="row">${chip(i.id)}<span class="why">${impact(i)}${why ? " · " + why : ""}</span></li>`;
+  const nothing = `<li class="why" style="color:var(--muted)">nothing</li>`;
+  const fill = (t, vars) => esc(t || "").replace(/{(w+)}/g, (_, k) => vars[k] ?? "");
+  const group = (title, lead, list, why = () => "") => {
+    let s = `<h2>${esc(title)}</h2>${lead ? `<p class="lead">${lead}</p>` : ""}<ul>`;
+    if (!list.length) s += nothing;
+    for (const { ms, l } of byMs(list)) s += `<li class="ms">${esc(msName(ms))}</li>` + l.map((i) => row(i, why(i))).join("");
+    return s + `</ul>`;
+  };
+  const flat = (title, list) => `<h2>${esc(title)}</h2><ul>` + (list.length ? list.map((i) => `<li class="row now">${chip(i.id)}<span class="why">${esc(msName(i.milestone))} · ${impact(i)}${i.stateNote ? " · " + esc(i.stateNote) : ""}</span></li>`).join("") : nothing) + `</ul>`;
+  const note = (i) => i.stateNote ? esc(i.stateNote) : "";
+  const waits = (i) => "waits for " + i.waitingFor.map((d) => chip(d, "idchip")).join(" ");
+  let h = `<div class="next">`;
+  for (const entry of R.overview) {
+    if (entry === "inProgress") { h += flat(R.inProgress.label, pick(R.lists.inProgress)); continue; }
+    if (entry === "next") { for (const n of R.next) h += flat(R.works.find((w) => w.id === n.work).next, pick(n.ids)); continue; }
+    if (entry === "reviews") { h += renderReviews(); continue; }
+    const w = R.works.find((x) => x.id === entry);
+    const list = pick(R.lists[w.id]);
+    h += group(w.label, fill(w.lead, { count: list.length, open: open.length }), list, note);
+    const waiting = pick(R.lists[w.id + ":waiting"]);
+    if (w.waiting && waiting.length) h += group(w.waiting.label, fill(w.waiting.lead, { count: waiting.length, open: open.length }), waiting, waits);
+  }
+  h += `</div>`;
+  left.innerHTML = h;
+}
+function renderReviews() {
+  let h = "";
+  for (const k of KINDS.filter((k) => k.review)) {
+    const all = Object.entries(R.reviews || {}).filter(([, r]) => r.kind === k.id);
+    const ok = new Set(k.review.states.filter((s) => s.ok).map((s) => s.id));
+    const toReview = all.filter(([, r]) => !ok.has(r.state));
+    const ov = k.review.overview || { label: `${k.label} to review`, lead: "Not reviewed yet: {count} of {total}." };
+    h += `<h2>${esc(ov.label)}</h2><p class="lead">${esc(ov.lead || "").replace("{count}", toReview.length).replace("{total}", all.length)}</p><ul>`
+      + (toReview.length ? toReview.map(([p]) => `<li class="row"><a href="#" data-doc="${esc(p)}">${esc(docName(p))}</a>${reviewBadge(p)}</li>`).join("") : `<li class="why" style="color:var(--muted)">nothing</li>`) + `</ul>`;
+  }
+  return h;
+}
+
+// ---- review states of documents whose kind has a review line (the config's docKinds[].review)
+function reviewBadge(p) {
+  const r = (R.reviews || {})[p];
+  if (!r) return "";
+  const k = KINDS.find((x) => x.id === r.kind), st = k?.review.states.find((s) => s.id === r.state);
+  const colour = st?.color ? (st.color.startsWith("#") ? st.color : `var(--s-${st.color})`) : "var(--muted)";
+  return ` <span class="badge" style="--st:${colour}" title="${esc(r.text)}">${esc(st?.label || r.state)}</span>`;
+}
+
+// ---- documents index, grouped by the config's doc kinds (the first kind whose pattern matches)
+function renderDocIndex() {
+  const paths = Object.keys(D).sort();
+  let h = `<div class="next"><h2>Documents</h2><p class="lead">Every document embedded in this page. Links between them open here.</p>`;
+  for (const k of KINDS) {
+    const list = paths.filter((p) => kindOf(p) === k);
+    if (!list.length) continue;
+    h += `<h3>${esc(k.label)}</h3><p class="lead">${esc(k.lead)}</p><ul>`;
+    for (const p of list) h += `<li><a href="#" data-doc="${esc(p)}">${esc(docName(p))}</a>${reviewBadge(p)}</li>`;
+    h += `</ul>`;
+  }
+  const rest = paths.filter((p) => !kindOf(p));
+  if (rest.length) h += `<h3>Other</h3><ul>` + rest.map((p) => `<li><a href="#" data-doc="${esc(p)}">${esc(p)}</a></li>`).join("") + `</ul>`;
+  left.innerHTML = h + `</div>`;
+}
+
+// ---- panel
+function select(id) {
+  if (!items[id]) return;
+  selected = id; location.hash = id;
+  renderPanel(id); markSelection();
+}
+function renderPanel(id) {
+  const it = items[id];
+  const list = (ids) => ids.length ? ids.map((x) => chip(x, "idchip")).join(" ") : `<span class="txt" style="color:var(--muted)">none</span>`;
+  const needed = upstream(id).filter((x) => !isFinal(x));
+  const doneDeps = upstream(id).filter(isFinal);
+  const area = R.areas.find((a) => a.id === it.area);
+  const ms = it.milestone === "C" ? "Continuous" : it.milestone ? `${it.milestone} ${R.milestones.find((m) => m.id === it.milestone)?.title || ""}` : "no milestone";
+  let h = `<div class="pan"><div class="id">${it.id}</div><h2>${esc(it.title)}</h2>`;
+  h += `<div class="meta"><span class="badge" style="--st:var(--s-${it.state})">${it.state}</span>${it.stateNote ? esc(it.stateNote) + " · " : ""}<b>${esc(area?.title || it.area)}</b> · ${esc(ms)}</div>`;
+  for (const k of KINDS.filter((k) => k.perItem)) {
+    const p = it.docs[k.id];
+    h += `<div class="sec"><h3>${esc(k.perItem.label)}</h3>${p ? `<button class="docbtn" data-opendoc="${esc(p)}">${esc(docName(p))}</button>${reviewBadge(p)}` : `<span class="txt" style="color:var(--muted)">${esc(k.perItem.missing)}</span>`}</div>`;
+  }
+  if (it.spec.length) h += `<div class="sec"><h3>${esc(R.linkedDocsLabel)}</h3>${it.spec.map((s) => s.doc ? `<button class="docbtn" data-opendoc="${esc(s.doc)}" data-anchor="${esc(s.anchor || "")}">${esc(s.text)}</button>` : `<span class="txt">${inline(s.text, R.boardPath)}</span>`).join("")}</div>`;
+  if (it.text) h += `<div class="sec"><div class="txt">${inline(it.text, R.boardPath)}</div></div>`;
+  if (it.note) h += `<div class="sec"><div class="txt">${inline(it.note, R.boardPath).replace(ID_RE, (m) => items[m] ? chip(m, "idchip") : m)}</div></div>`;
+  const stages = Object.values(items).filter((x) => x.feature === it.feature).sort((a, b) => a.stage - b.stage);
+  if (stages.length > 1) h += `<div class="sec"><h3>Stages of ${esc(it.feature)}</h3><ol>${stages.map((x) => `<li>${chip(x.id, "idchip")} ${esc(x.title)}${x.id === it.id ? " ◀" : ""}</li>`).join("")}</ol></div>`;
+  h += `<div class="sec"><h3>Waits for</h3>${list(it.after)}</div>`;
+  if (it.with.length) h += `<div class="sec"><h3>Together with</h3>${list(it.with)}</div>`;
+  h += `<div class="sec"><h3>Needed first, in order</h3>${needed.length ? `<ol>${needed.map((x) => `<li>${chip(x, "idchip")} ${esc(items[x].title)}</li>`).join("")}</ol>` : `<span class="txt" style="color:var(--muted)">nothing open: ${ST[it.state]?.final ? "it is " + it.state : "it can start"}</span>`}${doneDeps.length ? `<div class="txt" style="color:var(--muted);margin-top:4px">already done: ${doneDeps.map((x) => chip(x, "idchip")).join(" ")}</div>` : ""}</div>`;
+  h += `<div class="sec"><h3>Unblocks</h3>${list(it.unblocks)}${downstream(id).length > it.unblocks.length ? `<div class="txt" style="color:var(--muted);margin-top:4px">and after those: ${downstream(id).filter((x) => !it.unblocks.includes(x)).map((x) => chip(x, "idchip")).join(" ")}</div>` : ""}</div>`;
+  h += `<div class="sec"><button class="docbtn" data-opendoc="${esc(R.boardPath)}" data-anchor="item:${it.id}">Show in ${esc(R.boardPath.split("/").pop())}</button></div>`;
+  h += `<div class="doc" id="doc"></div></div>`;
+  panel.innerHTML = h;
+  const first = it.spec.find((s) => s.doc);
+  if (first) showDoc(first.doc, first.anchor, false);
+  panel.scrollTop = 0;
+}
+function showDoc(p, anchor, scroll = true) {
+  let docEl = $("#doc");
+  if (!docEl) { panel.innerHTML = `<div class="pan"><div class="doc" id="doc"></div></div>`; docEl = $("#doc"); }
+  if (!D[p]) { docEl.innerHTML = `<div class="crumb">${esc(p)}</div><div class="body">Not embedded.</div>`; return; }
+  docEl.innerHTML = `<div class="crumb">${esc(p)}</div><div class="body">${md(D[p], p)}</div>`;
+  for (const b of panel.querySelectorAll(".docbtn[data-opendoc]")) b.classList.toggle("on", b.dataset.opendoc === p);
+  const body = $(".body", docEl);
+  let target = null;
+  if (anchor && anchor.startsWith("item:")) target = body.querySelector("#" + CSS.escape("item-" + anchor.slice(5)));
+  else if (anchor) target = body.querySelector("#" + CSS.escape(slug(anchor))) || findHeading(body, anchor);
+  if (target) flash(target); else if (scroll) docEl.scrollIntoView({ block: "start" });
+}
+function findHeading(body, text) {
+  const t = text.toLowerCase();
+  const hs = [...body.querySelectorAll("h1,h2,h3,h4,h5,h6")];
+  return hs.find((h) => h.textContent.trim().toLowerCase().startsWith(t)) || hs.find((h) => h.textContent.toLowerCase().includes(t)) || null;
+}
+function flash(el) {
+  const box = el.closest(".body");
+  if (box) box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top - 8; else el.scrollIntoView({ block: "start" });
+  el.classList.add("mark"); setTimeout(() => el.classList.remove("mark"), 2500);
+}
+
+// ---- markdown (small, enough for these docs)
+const slug = (s) => s.toLowerCase().replace(/<[^>]+>/g, "").replace(/[`*_]/g, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
+function pnorm(p) { const out = []; for (const seg of p.split("/")) { if (!seg || seg === ".") continue; if (seg === "..") out.pop(); else out.push(seg); } return out.join("/"); }
+function pdir(p) { return p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : ""; }
+const ITEM_LINE_RE = new RegExp(`^\\*\\*(${R.idPattern}) `);
+function fromDocs(p) { // a repo path, relative to where the page lives
+  return R.pageDir && p.startsWith(R.pageDir + "/") ? p.slice(R.pageDir.length + 1) : R.toRoot + p;
+}
+function inline(s, base) {
+  const codes = [];
+  let t = esc(s).replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
+  t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, src) => /^https?:/.test(src) ? `<img alt="${alt}" src="${src}">` : `<img alt="${alt}" src="${fromDocs(pnorm(pdir(base) + "/" + src))}">`);
+  t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, txt, href) => {
+    if (/^https?:|^mailto:/.test(href)) return `<a href="${href}" target="_blank" rel="noopener">${txt}</a>`;
+    if (href.startsWith("#")) return `<a href="#" data-local="${esc(slug(decodeURIComponent(href.slice(1))))}">${txt}</a>`;
+    const [file, hash] = href.split("#");
+    const rel = pnorm(pdir(base) + "/" + decodeURIComponent(file));
+    if (D[rel]) return `<a href="#" data-doc="${esc(rel)}" data-anchor="${esc(hash ? decodeURIComponent(hash) : "")}">${txt}</a>`;
+    return `<a href="${fromDocs(rel)}" title="${esc(rel)}">${txt}</a>`;
+  });
+  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[\s(>])\*([^*\n]+)\*/g, "$1<em>$2</em>").replace(/(^|[\s(>])_([^_\n]+)_(?=[\s.,;:)]|$)/g, "$1<em>$2</em>");
+  t = t.replace(/^\[([ xX])\] /, (_, c) => c === " " ? "☐ " : "☑ ");
+  return t.replace(/\u0000(\d+)\u0000/g, (_, i) => {
+    const c = codes[i], m = c.match(/^([\w./-]+\.md)(?:#(.*))?$/);
+    if (m) { // a document named in backticks opens here too
+      const direct = pnorm(pdir(base) + "/" + m[1]);
+      const rel = D[direct] ? direct : D[m[1]] ? m[1] : Object.keys(D).find((p) => p.endsWith("/" + m[1].replace(/^.*\//, "")));
+      if (rel) return `<a href="#" data-doc="${esc(rel)}" data-anchor="${esc(m[2] ? decodeURIComponent(m[2]) : "")}"><code>${c}</code></a>`;
+    }
+    return `<code>${c}</code>`;
+  });
+}
+function md(src, base) {
+  const L = src.split("\n"), out = [];
+  const stack = []; // open lists: { indent, type }
+  const closeTo = (indent) => { while (stack.length && stack.at(-1).indent >= indent) { out.push(`</li></${stack.pop().type}>`); } };
+  const closeAll = () => closeTo(-1);
+  let i = 0, para = [];
+  const flushPara = () => { if (para.length) { out.push(`<p>${inline(para.join(" "), base)}</p>`); para = []; } };
+  const isList = (l) => l.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
+  while (i < L.length) {
+    const l = L[i];
+    let m;
+    if ((m = l.match(/^\s*```/))) { flushPara(); closeAll(); const buf = []; i++; while (i < L.length && !/^\s*```/.test(L[i])) buf.push(L[i++]); i++; out.push(`<pre><code>${esc(buf.join("\n"))}</code></pre>`); continue; }
+    if ((m = l.match(/^(#{1,6})\s+(.*)$/))) { flushPara(); closeAll(); const txt = inline(m[2].replace(/\s#+$/, ""), base); out.push(`<h${m[1].length} id="${slug(m[2])}">${txt}</h${m[1].length}>`); i++; continue; }
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l)) { flushPara(); closeAll(); out.push("<hr>"); i++; continue; }
+    if (/^\s*>/.test(l)) { flushPara(); closeAll(); const buf = []; while (i < L.length && /^\s*>/.test(L[i])) buf.push(L[i++].replace(/^\s*> ?/, "")); out.push(`<blockquote>${md(buf.join("\n"), base)}</blockquote>`); continue; }
+    if (l.includes("|") && i + 1 < L.length && /^\s*\|?\s*:?-{2,}/.test(L[i + 1])) {
+      flushPara(); closeAll();
+      const cells = (r) => r.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => inline(c.trim(), base));
+      const head = cells(l); i += 2; const rows = [];
+      while (i < L.length && L[i].includes("|") && L[i].trim()) rows.push(cells(L[i++]));
+      out.push(`<table><thead><tr>${head.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`);
+      continue;
+    }
+    if ((m = isList(l))) {
+      flushPara();
+      const indent = m[1].replace(/\t/g, "  ").length, type = /\d/.test(m[2]) ? "ol" : "ul";
+      let text = inline(m[3], base);
+      const idm = m[3].match(ITEM_LINE_RE);
+      const attrs = idm ? ` id="item-${idm[1]}"` : "";
+      const top = stack.at(-1);
+      if (!top || indent > top.indent) { stack.push({ indent, type }); out.push(`<${type}><li${attrs}>${text}`); }
+      else { closeTo(indent + 1); const t2 = stack.at(-1); if (t2 && t2.indent === indent && t2.type === type) out.push(`</li><li${attrs}>${text}`); else { closeTo(indent); stack.push({ indent, type }); out.push(`<${type}><li${attrs}>${text}`); } }
+      i++; continue;
+    }
+    if (!l.trim()) { flushPara(); let j = i + 1; while (j < L.length && !L[j].trim()) j++; if (!(j < L.length && stack.length && (isList(L[j]) || /^\s{2,}\S/.test(L[j])))) closeAll(); i = j; continue; }
+    if (stack.length && /^\s+\S/.test(l)) { out.push(" " + inline(l.trim(), base)); i++; continue; }
+    closeAll(); para.push(l.trim()); i++;
+  }
+  flushPara(); closeAll();
+  return out.join("\n");
+}
+
+// ---- start
+setView(view);
+const h0 = decodeURIComponent(location.hash.slice(1));
+if (items[h0]) select(h0);
+addEventListener("hashchange", () => { const h = decodeURIComponent(location.hash.slice(1)); if (items[h] && h !== selected) select(h); });
+})();
+</script>
+</body>
+</html>
