@@ -5,6 +5,7 @@
 //   roadmd build                 check, then write the page (and the review indexes)
 //   roadmd next [work]           what can be worked on now; work = a work id from the config, doing, or review
 //   roadmd show ID               one item: its state, documents, what it waits for and unblocks
+//   roadmd convert [dir]         move a single-file board into a folder of item files (default: roadmap/ beside it)
 //
 //   --config <file>   the project's roadmd.config.json (default: found from the current folder upward)
 //   --json            machine-readable output
@@ -13,6 +14,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findConfig, CONFIG_NAME } from "./lib/config.mjs";
 import { loadModel, pageData } from "./lib/model.mjs";
+import { toFolder } from "./lib/convert.mjs";
+import { openStorage } from "./lib/storage.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -26,14 +29,14 @@ const out = (o) => console.log(JSON.stringify(o, null, 2));
 function fail(msg, code = 2) { if (json) out({ ok: false, error: msg }); else console.error(msg); process.exit(code); }
 
 if (["help", "-h", "--help"].includes(cmd)) {
-  console.log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 11).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
+  console.log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 12).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
   process.exit(0);
 }
 const configFile = configArg ? path.resolve(configArg) : findConfig(process.cwd()) || findConfig(here);
 if (!configFile) fail(`no ${CONFIG_NAME} found here or above (or pass --config)`);
 
 let m;
-try { m = loadModel(configFile, { writeIndexes: cmd === "build" }); }
+try { m = await loadModel(configFile, { writeIndexes: cmd === "build" }); }
 catch (e) { fail(e.message); }
 const { cfg, items, errors, warnings } = m;
 const counts = Object.fromEntries(cfg.states.map((s) => [s.id, m.all.filter((i) => i.state === s.id).length]));
@@ -41,10 +44,10 @@ const msName = (it) => (it.milestone === "C" ? "cont." : it.milestone || "none")
 
 // ---- check / build
 if (cmd === "check" || cmd === "build") {
-  if (json && cmd === "check") { out({ ok: !errors.length, errors, warnings, items: m.all.length, areas: m.board.areas.length, milestones: m.board.milestones.length, counts }); process.exit(errors.length ? 1 : 0); }
+  if (json && cmd === "check") { out({ ok: !errors.length, errors, warnings, items: m.all.length, areas: m.board.areas.length, milestones: m.board.milestones.filter((x) => !x.continuous).length, counts }); process.exit(errors.length ? 1 : 0); }
   for (const w of warnings) console.warn("warning: " + w);
   for (const e of errors) console.error("error: " + e);
-  console.log(`${m.all.length} items in ${m.board.areas.length} areas, ${m.board.milestones.length} milestones; ` + cfg.states.map((s) => `${s.id} ${counts[s.id]}`).join(", "));
+  console.log(`${m.all.length} items in ${m.board.areas.length} areas, ${m.board.milestones.filter((x) => !x.continuous).length} milestones; ` + cfg.states.map((s) => `${s.id} ${counts[s.id]}`).join(", "));
   if (errors.length) { console.error(`${errors.length} error(s)`); process.exit(1); }
   if (cmd === "check") { console.log("check passed" + (warnings.length ? ` with ${warnings.length} warning(s)` : "")); process.exit(0); }
   const template = fs.readFileSync(path.join(here, "page", "page.html"), "utf8");
@@ -69,6 +72,25 @@ if (errors.length) {
   for (const e of errors) console.error("error: " + e);
   console.error(`${errors.length} error(s): fix the board first (roadmd check)`);
   process.exit(1);
+}
+
+// ---- convert
+if (cmd === "convert") {
+  if (m.storage.type !== "file") fail(`convert moves a single-file board into a folder; this board is already a ${m.storage.type}`);
+  const given = args.find((a) => !a.startsWith("--"));
+  const dir = (given || path.posix.join(path.posix.dirname(cfg.storage.path), "roadmap")).replace(/\\/g, "/").replace(/\/$/, "");
+  const abs = path.join(cfg.root, dir);
+  if (fs.existsSync(abs) && fs.readdirSync(abs).length && !process.argv.includes("--force")) fail(`${dir} isn't empty (--force writes into it anyway)`);
+  const notes = [];
+  const { board } = toFolder(m.board, cfg, m.resolveRef, dir, (w) => notes.push(w));
+  const target = openStorage({ ...cfg, storage: { type: "folder", path: dir } });
+  await target.writeAll(board);
+  const n = Object.keys(board.items).length, d = board.dropped.length;
+  if (json) { out({ ok: true, dir, items: n, dropped: d, notes }); process.exit(0); }
+  for (const w of notes) console.warn("note: " + w);
+  console.log(`wrote ${dir}/: _board.md, ${n} items, ${d} dropped`);
+  console.log(`next: set "storage": { "type": "folder", "path": "${dir}" } in ${path.relative(process.cwd(), cfg.file) || cfg.file}, run roadmd check, then remove ${cfg.storage.path}`);
+  process.exit(0);
 }
 
 // ---- next
@@ -128,7 +150,7 @@ if (cmd === "show") {
     docs: it.itemDocs, links: it.links.map((r) => ({ text: r.text, doc: r.doc, anchor: r.anchor || null })), text: it.text, note: it.note,
     after: it.after, with: it.with, waitingFor: it.waitingFor, neededFirst: up.filter((d) => !final(d)), unblocks: it.unblocks,
     stages: m.all.filter((x) => x.feature === it.feature).sort((a, b) => a.stage - b.stage).map((x) => `${x.id} ${x.state}`),
-    line: `${cfg.board}:${it.line}`,
+    line: it.source ? `${it.source}:${it.line}` : null, was: it.was,
   };
   if (json) { out(o); process.exit(0); }
   const L = (k, v) => console.log(`${k.padEnd(13)}${Array.isArray(v) ? (v.length ? v.join(", ") : "-") : v || "-"}`);
@@ -140,6 +162,7 @@ if (cmd === "show") {
   L("documents", o.links.map((r) => r.doc ? `${r.doc}${r.anchor ? " #" + r.anchor : ""}` : r.text));
   if (it.text.length) L("text", it.text.join(" · "));
   L("waits for", it.after); if (it.with.length) L("with", it.with);
+  if (it.was.length) L("was", it.was);
   L("needed first", o.neededFirst); L("unblocks", it.unblocks); L("stages", o.stages); L("line", o.line);
   if (it.note.length) console.log("\n" + it.note.join("\n"));
   process.exit(0);

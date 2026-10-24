@@ -1,0 +1,24 @@
+{
+  "title": "Fixture roadmap",
+  "owner": "Owner",
+  "storage": { "type": "file", "path": "docs/ROADMAP.md" },
+  "page": "docs/roadmap.html",
+  "states": [
+    { "id": "backlog", "color": "#999", "milestoneOptional": true, "work": { "id": "design", "label": "To design", "needs": "tech" } },
+    { "id": "design", "color": "#70f", "active": true },
+    { "id": "tech", "color": "#0aa", "work": { "id": "tech", "label": "To tech-design", "needs": "ready", "waiting": { "label": "Tech but waiting" } } },
+    { "id": "ready", "color": "#d80", "requires": [ { "docKind": "tech", "review": "approved", "level": "warning" } ],
+      "work": { "id": "build", "label": "To build", "needs": "test", "waiting": { "label": "Ready but waiting" } } },
+    { "id": "doing", "color": "#26e", "active": true, "earlierStages": "test" },
+    { "id": "test", "color": "#d27", "earlierStages": "test", "work": { "id": "test", "label": "To test" } },
+    { "id": "done", "color": "#1a4", "final": true }
+  ],
+  "docs": { "include": ["docs/**/*.md"], "stemSuffixes": ["SPEC"] },
+  "docKinds": [
+    { "id": "tech", "label": "Tech designs", "match": "docs/tech/**", "displayName": "stem",
+      "perItem": { "label": "Tech design", "path": "docs/tech/{feature}_TECH.md", "missing": "not written yet" },
+      "review": { "files": "docs/tech/*_TECH.md", "line": "^> \\*\\*Review:\\*\\* (.+)$",
+        "states": [ { "id": "approved", "match": "^approved\\b", "ok": true }, { "id": "not reviewed", "default": true } ] } },
+    { "id": "design", "label": "Design", "match": "docs/*.md" }
+  ]
+}

@@ -1,6 +1,7 @@
 # roadmd: spec
 
 > Status: **draft 0.4** (2026-10-24). Matej moved it from a local file tool to a shared remote one: decisions 11-17.
+> Steps 1-2 built (the folder form proved on ShooterReborn: README *Proof*).
 > Step 1 built (read-only tool on today's single-file board, proved on ShooterReborn); the plan below is the new one.
 
 A very small Jira for working with AI agents. The board is a set of small markdown documents stored next to the
@@ -107,18 +108,24 @@ settings) and the board's folder.
 ## Steps
 
 1. **Read-only tool and proof** — built (single-file board).
-2. **The item format and the git-folder adapter**: the storage interface, `convert`, check / next / show / build on
-   item documents; proof: ShooterReborn converted gives the same lists and page data as today.
+2. **The item format and the git-folder adapter** — built. The storage interface (`lib/storage.mjs`: `file`, read
+   only, and `folder`, read and write), the model every adapter loads (`lib/ids.mjs` `newItem`), `roadmd convert`
+   (`lib/convert.mjs`), the folder format (`lib/folder.mjs`); tests (`npm test`); proof: ShooterReborn converted gives
+   the same `next` and page data as its single file (`proof/shooterreborn.mjs`).
+   As built: `feeds` becomes the other item's `after`; the single file's `## Renumbered` pairs become `was:`; an item's
+   parts are kept as `docs:` (those that resolve to a document) and `text:`; relative links are rewritten for the
+   item's folder; items in an area are ordered by ID (feature, then stage), no longer by their place in one file;
+   `---` rules between sections are never content.
 3. **Edits**: set a state, add, edit title / body / dependencies, move, rename, drop, milestones and areas; each one
    validated before it is written; owner-only transitions.
 4. **The service**: HTTP server with the page (editing on), the JSON API and the agent tools (MCP over HTTP); deploy
    to Fly.io.
-5. **The documentation server adapter** and accounts (who may edit, who is the owner).
+5. **The Encyclist adapter** (decision 16; it needs a local Encyclist to prove it on: Docker on Matej's PC is broken
+   and it has no Python) and accounts (who may edit, who is the owner).
 6. **Agent kit**: the rules snippet for a project's CLAUDE.md (who changes which state, when to check).
 7. **Bootstrap**: procedure, agent prompt and skill to study a project and write its first board.
 
 ## Open questions
 
-- The documentation server: its code and API (Matej is providing its git folder).
 - Accounts: who signs in, through what, and who is the owner (7, 13).
 - History where the store has none (6).

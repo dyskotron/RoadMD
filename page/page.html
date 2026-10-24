@@ -409,16 +409,18 @@ function renderPanel(id) {
     const p = it.docs[k.id];
     h += `<div class="sec"><h3>${esc(k.perItem.label)}</h3>${p ? `<button class="docbtn" data-opendoc="${esc(p)}">${esc(docName(p))}</button>${reviewBadge(p)}` : `<span class="txt" style="color:var(--muted)">${esc(k.perItem.missing)}</span>`}</div>`;
   }
-  if (it.spec.length) h += `<div class="sec"><h3>${esc(R.linkedDocsLabel)}</h3>${it.spec.map((s) => s.doc ? `<button class="docbtn" data-opendoc="${esc(s.doc)}" data-anchor="${esc(s.anchor || "")}">${esc(s.text)}</button>` : `<span class="txt">${inline(s.text, R.boardPath)}</span>`).join("")}</div>`;
-  if (it.text) h += `<div class="sec"><div class="txt">${inline(it.text, R.boardPath)}</div></div>`;
-  if (it.note) h += `<div class="sec"><div class="txt">${inline(it.note, R.boardPath).replace(ID_RE, (m) => items[m] ? chip(m, "idchip") : m)}</div></div>`;
+  if (it.spec.length) h += `<div class="sec"><h3>${esc(R.linkedDocsLabel)}</h3>${it.spec.map((s) => s.doc ? `<button class="docbtn" data-opendoc="${esc(s.doc)}" data-anchor="${esc(s.anchor || "")}">${esc(s.text)}</button>` : `<span class="txt">${inline(s.text, it.source || R.boardPath)}</span>`).join("")}</div>`;
+  if (it.text) h += `<div class="sec"><div class="txt">${inline(it.text, it.source || R.boardPath)}</div></div>`;
+  if (it.note) h += `<div class="sec"><div class="txt">${inline(it.note, it.source || R.boardPath).replace(ID_RE, (m) => items[m] ? chip(m, "idchip") : m)}</div></div>`;
   const stages = Object.values(items).filter((x) => x.feature === it.feature).sort((a, b) => a.stage - b.stage);
   if (stages.length > 1) h += `<div class="sec"><h3>Stages of ${esc(it.feature)}</h3><ol>${stages.map((x) => `<li>${chip(x.id, "idchip")} ${esc(x.title)}${x.id === it.id ? " ◀" : ""}</li>`).join("")}</ol></div>`;
+  if (it.was && it.was.length) h += `<div class="sec"><h3>Was</h3><span class="txt">${it.was.map(esc).join(", ")}</span></div>`;
   h += `<div class="sec"><h3>Waits for</h3>${list(it.after)}</div>`;
   if (it.with.length) h += `<div class="sec"><h3>Together with</h3>${list(it.with)}</div>`;
   h += `<div class="sec"><h3>Needed first, in order</h3>${needed.length ? `<ol>${needed.map((x) => `<li>${chip(x, "idchip")} ${esc(items[x].title)}</li>`).join("")}</ol>` : `<span class="txt" style="color:var(--muted)">nothing open: ${ST[it.state]?.final ? "it is " + it.state : "it can start"}</span>`}${doneDeps.length ? `<div class="txt" style="color:var(--muted);margin-top:4px">already done: ${doneDeps.map((x) => chip(x, "idchip")).join(" ")}</div>` : ""}</div>`;
   h += `<div class="sec"><h3>Unblocks</h3>${list(it.unblocks)}${downstream(id).length > it.unblocks.length ? `<div class="txt" style="color:var(--muted);margin-top:4px">and after those: ${downstream(id).filter((x) => !it.unblocks.includes(x)).map((x) => chip(x, "idchip")).join(" ")}</div>` : ""}</div>`;
-  h += `<div class="sec"><button class="docbtn" data-opendoc="${esc(R.boardPath)}" data-anchor="item:${it.id}">Show in ${esc(R.boardPath.split("/").pop())}</button></div>`;
+  if (it.source && D[it.source]) h += `<div class="sec"><button class="docbtn" data-opendoc="${esc(it.source)}" data-anchor="item:${it.id}">Show in ${esc(it.source.split("/").pop())}</button></div>`;
+  else if (it.source) h += `<div class="sec"><span class="txt" style="color:var(--muted)">source: <code>${esc(it.source)}</code></span></div>`;
   h += `<div class="doc" id="doc"></div></div>`;
   panel.innerHTML = h;
   const first = it.spec.find((s) => s.doc);

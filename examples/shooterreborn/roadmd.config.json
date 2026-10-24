@@ -1,7 +1,7 @@
 {
   "title": "ShooterReborn roadmap",
   "owner": "Matej",
-  "board": "docs/ROADMAP.md",
+  "storage": { "type": "file", "path": "docs/ROADMAP.md" },
   "page": "docs/roadmap.html",
   "nextSize": 5,
   "ids": { "pattern": "[A-Z]{2,12}-\\d+", "unordered": ["GDD", "NEBULA"] },
