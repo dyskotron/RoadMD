@@ -409,3 +409,53 @@ test("encyclist documents: the page's documents, and an item's references to the
     assert.match(html, /"doc_000000a1":\{"title":"Capture Mechanics v1.0"/);
   } finally { await fake.close(); }
 });
+
+// ---- the MCP (lib/mcpserver.mjs), the Creaturist case: an empty Encyclist, a board started by an agent
+import { mcpClient } from "../lib/mcp.mjs";
+test("mcp: an agent starts a board in an empty Encyclist and builds it; roles hold", async () => {
+  const fake = await startFakeEncyclist({ docs: [{ doc_id: "doc_000000c1", title: "Capture Mechanics v1.0", content: "# Capture\n\n## Seals\n\nText.", tags: ["design"] }] });
+  const dir = await encyclistCopy(fake);
+  const p = path.join(dir, "encyclist.config.json");
+  const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
+  cfg.docs = { source: "encyclist" };
+  cfg.docKinds = [{ id: "docs", label: "Documents", match: "**" }];
+  delete cfg.states.find((s) => s.id === "ready").requires;
+  fs.writeFileSync(p, JSON.stringify(cfg));
+  const keys = JSON.stringify([{ name: "matej", key: "k-owner", role: "owner" }, { name: "agent", key: "k-editor", role: "editor" }, { name: "viewer", key: "k-reader", role: "reader" }]);
+  const server = await startServer({ configFile: p, port: 0, host: "127.0.0.1", password: "pw", keys, log: () => {} });
+  const url = `http://127.0.0.1:${server.address().port}/mcp`;
+  const as = (key) => mcpClient({ url, headers: { "X-API-Key": key } });
+  try {
+    const agent = as("k-editor"), owner = as("k-owner"), viewer = as("k-reader");
+    const names = (await agent.tools()).map((t) => t.name);
+    for (const n of ["roadmap_guide", "roadmap_init", "roadmap_add_item", "roadmap_next", "roadmap_doc_read"]) assert.ok(names.includes(n), n);
+    const g = await agent.call("roadmap_guide");
+    assert.equal(g.process.find((s) => s.state === "done").ownerOnly, true);
+    assert.match(g.startingABoard, /Bootstrapping a project's board/);
+    assert.equal((await agent.call("roadmap_whoami")).role, "editor");
+    assert.match((await agent.call("roadmap_check")).errors.join(), /no board here yet/);
+    assert.deepEqual((await agent.call("roadmap_docs_list")).map((d) => d.title), ["Capture Mechanics v1.0"]);
+    assert.match((await agent.call("roadmap_doc_read", { id: "Capture Mechanics v1.0" })).content, /## Seals/);
+    await agent.call("roadmap_init", { title: "Creaturist roadmap", intro: "The game and the business." });
+    await agent.call("roadmap_area", { action: "add", code: "GAME", title: "the game" });
+    await agent.call("roadmap_milestone", { action: "add", id: "M1", title: "A first walk" });
+    await agent.call("roadmap_add_item", { id: "CAPTURE-1", title: "Capturing a creature", area: "GAME", milestone: "M1", docs: ["Capture Mechanics v1.0 *Seals*"], note: "Design written." });
+    await agent.call("roadmap_add_item", { id: "CAPTURE-2", title: "Seals", area: "GAME", milestone: "M1" });
+    const bad = await agent.call("roadmap_deps", { id: "CAPTURE-1", list: "after", add: ["CAPTURE-2"] }).catch((e) => e);
+    assert.match(bad.message, /refused[\s\S]*dependency cycle/);                  // CAPTURE-2 already waits for CAPTURE-1
+    assert.match((await agent.call("roadmap_set_state", { id: "CAPTURE-1", state: "done" }).catch((e) => e)).message, /owner only/);
+    assert.match((await viewer.call("roadmap_add_item", { id: "X-1", title: "x", area: "GAME" }).catch((e) => e)).message, /is a reader/);
+    await owner.call("roadmap_set_state", { id: "CAPTURE-1", state: "done" });
+    const show = await agent.call("roadmap_show", { id: "CAPTURE-1" });
+    assert.match(show.stateNote, /^accepted by /);
+    assert.deepEqual(show.documents.map((d) => [d.doc, d.section]), [["doc_000000c1", "Seals"]]);
+    assert.equal([...fake.rels.values()].length, 1);                              // linked in the knowledge base
+    const board = await viewer.call("roadmap_board");
+    assert.deepEqual(board.items.map((i) => i.id), ["CAPTURE-1", "CAPTURE-2"]);
+    assert.equal((await agent.call("roadmap_check")).ok, true);
+    const wrong = await as("nope").call("roadmap_check").catch((e) => e);
+    assert.match(wrong.message, /not authorised \(401\)/);
+    const page = await fetch(url.replace("/mcp", "/api/next"), { headers: { authorization: "Basic " + Buffer.from("x:pw").toString("base64") } });
+    assert.equal((await page.json()).items, 2);                                    // the page and the API see the agent's board at once
+  } finally { server.close(); await fake.close(); }
+});

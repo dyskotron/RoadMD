@@ -1,2 +1,3 @@
 proof/out/
 .dev.env
+*.local.md

@@ -27,6 +27,13 @@ node path/to/roadmd.mjs serve --port 8080   # the page and /api/board, /api/next
 
 Deploying the server (Fly.io): [deploy/README.md](deploy/README.md).
 
+**Agents** connect to the server's MCP, `https://<server>/mcp` (Streamable HTTP), with a roadmd key in the
+`X-API-Key` header (the server's `ROADMD_KEYS`: `[{ "name", "key", "role": "owner" | "editor" | "reader" }]`).
+Claude Code: `claude mcp add --transport http roadmd https://<server>/mcp --header "X-API-Key: <key>"`. The agent
+calls `roadmap_guide` first: it explains the project's process and rules and how to start a board; the documents are
+read through `roadmap_docs_list` / `roadmap_doc_read`; every edit is checked and refused with its reasons when it
+would break the board; only an owner key sets an owner-only state.
+
 With an Encyclist board, `"docs": { "source": "encyclist" }` makes the knowledge base's own documents the page's
 documents: an item names one by its exact title (or `doc_…` ID), optionally with a section after it, and roadmd keeps
 that link as a `documented_by` relationship, so the document shows its items in Encyclist too.
@@ -68,6 +75,7 @@ Tests: `npm test` (Node's own runner, no dependencies; a small board in `tests/f
 - `lib/convert.mjs` — a board moved into the folder format.
 - `lib/edit.mjs` — edits: applied to a copy, the board checked again, only the changes written.
 - `lib/server.mjs` — `roadmd serve`; `lib/page.mjs` — the page, for build and serve alike.
+- `lib/mcpserver.mjs` — the agents' MCP: the tools, keys and roles.
 - `deploy/` — the Dockerfile, `stage.mjs` and an example `fly.toml` for running it on Fly.
 - `lib/docs.mjs` — embedded documents, document references, review lines and indexes.
 - `lib/analyze.mjs` — the checks, what can be worked on, the ranking (pure).

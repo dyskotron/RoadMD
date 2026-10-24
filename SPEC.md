@@ -137,8 +137,19 @@ state from which an ID never changes).
      with `ROADMD_PASSWORD`, everything but `/health`; writes refused. Deployment kit in `deploy/` (Dockerfile,
      `stage.mjs`, `fly.example.toml`, README). Running: `roadmd-dev.fly.dev`, ShooterReborn's board from
      `encyclist-dev` with its documents in the image.
-   - **4b — to do:** editing on the page (the edits of step 3 through a JSON API, refused when the board changed since
-     the page loaded), then the agent tools over MCP.
+   - **4b, the agents' MCP — built** (Matej, 2026-10-24: first, so his agent works with the board as with
+     ShooterReborn's): `POST /mcp` on the server (`lib/mcpserver.mjs`, Streamable HTTP, stateless JSON-RPC, no SDK).
+     Keys in `ROADMD_KEYS` (`[{ name, key, role }]`, sent as `X-API-Key` or `Authorization: Bearer`), roles `owner`
+     (sets owner-only states: decision 7 enforced), `editor`, `reader`; no keys: the MCP is closed. Tools:
+     `roadmap_guide` (the process, the rules, the bootstrap procedure: what an agent reads first), `roadmap_whoami`,
+     `roadmap_check`, `roadmap_board`, `roadmap_next`, `roadmap_show`, `roadmap_docs_list`, `roadmap_doc_read` (the
+     project's documents through roadmd, so one connection is enough to study the project and build its board),
+     `roadmap_init` (an empty board for a new project), and the edits: `roadmap_area`, `roadmap_milestone`,
+     `roadmap_add_item`, `roadmap_edit_item`, `roadmap_set_state`, `roadmap_deps`, `roadmap_move`,
+     `roadmap_rename`, `roadmap_drop` (each with `dry_run`). Edits run one at a time on a board read fresh for each,
+     through lib/edit.mjs; a refused edit returns its reasons. Running on roadmd-dev with keys `matej` (owner) and
+     `agent` (editor).
+   - **4b, editing on the page — to do:** the same edits from the page, refused when the board changed since it loaded.
 5. **The Encyclist adapter** (decision 16) and accounts (who may edit, who is the owner).
    - **Built: the board as entities** (`lib/encyclist.mjs`, over `lib/mcp.mjs`, a dependency-free MCP client): entity
      types `<prefix>_board`, `_area`, `_milestone` (with `order`), `_item` (the folder file's fields; a dropped item

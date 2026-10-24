@@ -14,7 +14,7 @@ for (const f of ["roadmd.config.json", "fly.toml"]) if (!fs.existsSync(path.join
 const cfg = JSON.parse(fs.readFileSync(path.join(site, "roadmd.config.json"), "utf8"));
 if (cfg.storage?.envFile) { console.error("the site's config names an envFile: on a server the key comes from a secret (fly secrets set " + cfg.storage.keyEnv + "=…)"); process.exit(2); }
 fs.rmSync(out, { recursive: true, force: true });
-for (const p of ["roadmd.mjs", "package.json", "lib", "page"]) fs.cpSync(path.join(repo, p), path.join(out, "app", p), { recursive: true });
+for (const p of ["roadmd.mjs", "package.json", "lib", "page", "bootstrap"]) fs.cpSync(path.join(repo, p), path.join(out, "app", p), { recursive: true });
 fs.cpSync(site, path.join(out, "site"), { recursive: true, filter: (p) => !/(^|[\/])(\.env|\.dev\.env|\.git)$/.test(p) });
 fs.copyFileSync(path.join(repo, "deploy", "Dockerfile"), path.join(out, "Dockerfile"));
 fs.copyFileSync(path.join(site, "fly.toml"), path.join(out, "fly.toml"));
