@@ -162,8 +162,9 @@ const stClass = (state) => (ST[state]?.final ? " final" : "") + (state === R.sta
 const ID_RE = new RegExp(`\\b(?:${R.idPattern})\\b`, "g");
 const globRe = (g) => new RegExp("^" + g.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*\/?|\*|\?/g, (t) => t === "?" ? "[^/]" : t === "*" ? "[^/]*" : t === "**/" ? "(?:.*/)?" : ".*") + "$");
 const KINDS = R.docKinds.map((k) => ({ ...k, re: k.match.map(globRe) }));
-const kindOf = (p) => KINDS.find((k) => k.re.some((r) => r.test(p))) || null;
-const docName = (p) => { const k = kindOf(p); return k && k.displayName === "stem" ? p.split("/").pop().replace(/\.md$/, "") : p; };
+const META = R.docMeta || {};
+const kindOf = (p) => KINDS.find((k) => k.re.some((r) => r.test(p)) || (k.tags && (META[p]?.tags || []).some((t) => k.tags.includes(t)))) || null;
+const docName = (p) => { if (META[p]?.title) return META[p].title; const k = kindOf(p); return k && k.displayName === "stem" ? p.split("/").pop().replace(/\.md$/, "") : p; };
 
 // ---- theme
 const theme = $("#theme");
@@ -431,7 +432,7 @@ function showDoc(p, anchor, scroll = true) {
   let docEl = $("#doc");
   if (!docEl) { panel.innerHTML = `<div class="pan"><div class="doc" id="doc"></div></div>`; docEl = $("#doc"); }
   if (!D[p]) { docEl.innerHTML = `<div class="crumb">${esc(p)}</div><div class="body">Not embedded.</div>`; return; }
-  docEl.innerHTML = `<div class="crumb">${esc(p)}</div><div class="body">${md(D[p], p)}</div>`;
+  docEl.innerHTML = `<div class="crumb">${esc(META[p]?.title ? META[p].title + " · " + p : p)}</div><div class="body">${md(D[p], p)}</div>`;
   for (const b of panel.querySelectorAll(".docbtn[data-opendoc]")) b.classList.toggle("on", b.dataset.opendoc === p);
   const body = $(".body", docEl);
   let target = null;

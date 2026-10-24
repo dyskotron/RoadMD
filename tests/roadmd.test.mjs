@@ -374,3 +374,38 @@ test("serve: the page and the API behind the password, /health open", async () =
     assert.equal((await fetch(`${base}/api/board`, { method: "POST", headers: auth })).status, 405);
   } finally { server.close(); }
 });
+
+test("encyclist documents: the page's documents, and an item's references to them as relationships", async () => {
+  const fake = await startFakeEncyclist({ docs: [
+    { doc_id: "doc_000000a1", title: "Capture Mechanics v1.0", content: "# Capture\n\n## Scoring\n\nPoints.", tags: ["design"] },
+    { doc_id: "doc_000000a2", title: "Audio System", content: "# Audio", tags: ["audio"] },
+  ] });
+  try {
+    const dir = await encyclistCopy(fake);
+    const p = path.join(dir, "encyclist.config.json");
+    const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
+    cfg.docs = { source: "encyclist" };
+    cfg.docKinds = [{ id: "design", label: "Design", tags: ["design"] }, { id: "other", label: "Other", match: "**" }];
+    delete cfg.states.find((s) => s.id === "ready").requires;
+    fs.writeFileSync(p, JSON.stringify(cfg));
+    await roadmdAsync(dir, "convert", "--to-config", "encyclist.config.json");
+    const c = ["--config", "encyclist.config.json"];
+    await roadmdAsync(dir, "edit", "MAP-1", "--docs", "Capture Mechanics v1.0 *Scoring* · Audio System · Capture Mechanics v1.0 *Intro* · NOTES.md", ...c);
+    const rels = [...fake.rels.values()];
+    assert.equal(rels.length, 2);                                     // one per item and document
+    const capture = rels.find((r) => r.to_id === "doc_000000a1");
+    assert.deepEqual(capture.properties.refs.map((r) => r.text), ["Capture Mechanics v1.0 *Scoring*", "Capture Mechanics v1.0 *Intro*"]);
+    const rec = [...fake.entities.values()].find((e) => e.data.key === "MAP-1");
+    assert.deepEqual(rec.data.docs, ["NOTES.md"]);                    // only what isn't the knowledge base's own
+    const show = await roadmdAsync(dir, "show", "MAP-1", ...c);
+    assert.deepEqual(show.links.map((l) => [l.doc, l.anchor]), [["doc_000000a1", "Scoring"], ["doc_000000a2", null], ["doc_000000a1", "Intro"]]);
+    const m = await loadModel(p);
+    assert.equal(m.docMeta.doc_000000a1.title, "Capture Mechanics v1.0");
+    assert.match(m.docs.doc_000000a1, /## Scoring/);
+    await roadmdAsync(dir, "edit", "MAP-1", "--docs", "Audio System", ...c);
+    assert.deepEqual([...fake.rels.values()].map((r) => r.to_id), ["doc_000000a2"]);
+    await run("node", [cli, "build", ...c], { cwd: dir });            // async: this process hosts the fake server
+    const html = fs.readFileSync(path.join(dir, "docs", "roadmap.html"), "utf8");
+    assert.match(html, /"doc_000000a1":\{"title":"Capture Mechanics v1.0"/);
+  } finally { await fake.close(); }
+});

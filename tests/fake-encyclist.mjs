@@ -2,11 +2,22 @@
 // (JSON answers, or one server-sent event when asked with ?sse), an X-API-Key check. For tests only.
 import http from "node:http";
 
-export async function startFakeEncyclist({ key = "test-key", sse = false } = {}) {
-  const types = new Map(), entities = new Map();
+export async function startFakeEncyclist({ key = "test-key", sse = false, docs: seed = [] } = {}) {
+  const types = new Map(), entities = new Map(), docs = new Map(), rels = new Map();
   let n = 0;
   const now = () => new Date(Date.now() + n).toISOString();
+  for (const d of seed) docs.set(d.doc_id, { tags: [], source: "", ...d });
   const tools = {
+    ec_doc_list: ({ limit = 20, offset = 0 }) => { const all = [...docs.values()]; return { total: all.length, docs: all.slice(offset, offset + limit).map(({ content, ...d }) => d) }; },
+    ec_doc_get: ({ doc_id }) => { const d = docs.get(doc_id); if (!d) throw new Error(`Document not found: '${doc_id}'`); return d; },
+    ec_rel_query: ({ from_id, to_id, relation }) => ({ relationships: [...rels.values()].filter((r) => (!from_id || r.from_id === from_id) && (!to_id || r.to_id === to_id) && (!relation || r.relation === relation)) }),
+    ec_rel_add: ({ from_id, relation, to_id, properties }) => {
+      if ([...rels.values()].some((r) => r.from_id === from_id && r.relation === relation && r.to_id === to_id)) throw new Error("UNIQUE constraint failed");
+      const rel_id = `rel_${(++n).toString(16).padStart(8, "0")}`;
+      rels.set(rel_id, { rel_id, from_id, relation, to_id, properties: properties ?? null });
+      return { rel_id, from: from_id, relation, to: to_id };
+    },
+    ec_rel_delete: ({ rel_id }) => { if (!rels.delete(rel_id)) throw new Error(`Relationship not found: '${rel_id}'`); return { status: "deleted", rel_id }; },
     ec_entity_type_list: () => [...types.values()].map((t) => ({ name: t.name, description: t.description, field_count: Object.keys(t.fields).length, entity_count: [...entities.values()].filter((e) => e.type === t.name).length, fields: t.fields })),
     ec_entity_type_define: ({ name, fields, description }) => { types.set(name, { name, fields, description }); return { type_name: name, fields, status: "created" }; },
     ec_entity_create: ({ type, data }) => {
@@ -51,5 +62,5 @@ export async function startFakeEncyclist({ key = "test-key", sse = false } = {})
     });
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
-  return { url: `http://127.0.0.1:${server.address().port}/mcp`, key, entities, types, close: () => new Promise((r) => server.close(r)) };
+  return { url: `http://127.0.0.1:${server.address().port}/mcp`, key, entities, types, docs, rels, close: () => new Promise((r) => server.close(r)) };
 }
