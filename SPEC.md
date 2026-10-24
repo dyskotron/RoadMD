@@ -1,96 +1,110 @@
 # roadmd: spec
 
-> Status: **draft 0.2** (2026-10-24). Decisions 1-4 answered by Matej; 5-10 are the proposed defaults, open until he
-> says otherwise. Steps: 1 built (read-only tool + proof), 2-5 to do.
+> Status: **draft 0.3** (2026-10-24). Matej moved it from a local file tool to a shared remote one: decisions 11-15.
+> Step 1 built (read-only tool on today's single-file board, proved on ShooterReborn); the plan below is the new one.
 
-A very small Jira for working with AI agents. One markdown file is the task board; a generated page shows it with
-every design document embedded; agents read the board, keep it true and pick their next work from it with a CLI.
-Git is the history: no database, no accounts, no changelog. Born as ShooterReborn's `tools/roadmap/`, made universal:
-everything about a project's process lives in its config.
+A very small Jira for working with AI agents. The board is a set of small markdown documents stored next to the
+project's design documents; roadmd is the engine that reads them (checks, what can be worked on now, the ranking),
+edits them safely, and shows them on a page anyone on the project can open. Agents use the same board: through the
+documentation store they already have, and through roadmd's own tools for its rules. Everything about a project's
+process lives in its config.
 
 ## Decisions
 
-1. **The board is markdown with a line grammar** (answered). One line per item; the existing ShooterReborn board
-   reads unchanged. See *The board*.
-2. **Page edits go through a tiny local server** (answered): `roadmd serve` shows the page with editing on and
-   writes through the same code as the CLI. The published static page stays read-only.
+1. ~~The board is one markdown file with a line grammar~~ — superseded by 12. Markdown stays (answered).
+2. ~~Page edits go through a tiny local server~~ — superseded by 13.
 3. **The process is data, the grammar is code** (answered). Config: states, what each needs, document kinds, review
-   lines, ID patterns, paths, labels. Fixed: the grammar's skeleton, what dependencies mean, the checks, the ranking,
-   the page's layout.
-4. **Name and home** (answered): `roadmd`, repository `C:\DATA\PROJECTS\roadmd`.
-5. **How a project gets it** (default): a copied folder (`tools/roadmd/`), refreshed by a `roadmd update` command from
-   the repository. Works offline and in every worktree; no submodule, no npm.
-6. **Page edits and git** (default): the server only writes the file; the person or the roadmap thread commits.
-7. **Owner-only changes** (default): the config marks transitions only the owner makes (`test → done`); the page can
-   make them, the CLI only with `--owner`, which the agent rules forbid. A convention, not security.
-8. **Rename** (default): rewrites every reference on the board, adds a line under *Renumbered*, and lists the
-   documents that mention the old ID for the agent to fix.
-9. **Stack** (default): Node 18+, no dependencies, one HTML template.
-10. **Owner's name** (default): `owner` in the config, used in texts and in notes like `done (accepted by <owner> <date>)`.
+   lines, ID patterns, labels. Fixed: the format's skeleton, what dependencies mean, the checks, the ranking, the
+   page's layout.
+4. **Name and home** (answered): `roadmd`, https://github.com/dyskotron/RoadMD (`main`).
+5. ~~How a project gets it: a copied folder~~ — superseded by 13 (it runs as a service; a local run stays possible).
+6. **Edits and history** (open): the store's own history where it has one (git: one commit per edit); otherwise
+   roadmd keeps a short log of board edits.
+7. **Owner-only changes** (open): the config marks transitions only the owner makes (`test → done`); with accounts
+   (15) this is enforced, not a convention.
+8. **Rename** (default): roadmd's operation, never by hand: the item's document, every item that refers to it, and a
+   `was:` line on the item; documents that mention the old ID are listed for the agent to fix.
+9. **Stack** (default): Node 18+, no dependencies unless they earn their place, one HTML page.
+10. **Owner's name** (default): `owner` in the config, used in texts and notes like `done (accepted by <owner> <date>)`.
+11. **One source of truth** (Matej, 2026-10-24): the board lives in the project's documentation store, next to the
+    documents it links to, never in a second store that would have to be kept in sync. roadmd keeps no data of its own.
+12. **One document per item** (Matej, 2026-10-24): an item is its own small markdown document (a few labelled lines,
+    then free text), so a bad edit breaks only that item and two people or agents editing different items never
+    collide. Board-wide things (areas, milestones and their order) are one small board document. See *The format*.
+13. **roadmd is a service** (Matej, 2026-10-24): the engine plus the page plus an API, deployable on Fly.io (or run
+    locally), reading and writing through a storage adapter. No database of its own.
+14. **Storage adapters**: one small interface (list items with their change stamps, read, write, rename, delete);
+    adapters for a git folder (also the local and test form) and for the project's documentation server. The
+    documentation server may be changed to give roadmd what it needs (Matej: "we can change it to support whatever we
+    need").
+15. **Agents first** (Matej, 2026-10-24: the tool must be usable by any agent, to reason over the documentation and
+    turn it into items): an agent with only the documentation store can read and edit items as markdown; roadmd also
+    offers its rules as agent tools (MCP over HTTP: check, next, show, set a state, add, move, rename, drop), and the
+    page shows anything an agent left broken.
 
-## The board
+## The format
 
-```
-# Title
-## Next                       a sentence: the list is computed, a bullet here is an error
+The board document (`_board.md` in the board's folder):
+
+```markdown
+# ShooterReborn roadmap
+
+## Areas
+- GDD — game design
+- SIM — world simulation and data
+
 ## Milestones
-### M1 Title — tag            then prose, then the items by ID (ranges X-1 … X-4)
-### Continuous tracks          may use FEATURE-* or AREA-*
-## The tree
-### CODE — Area title          intro lines, then items:
-- **ID Title** — state (qualifier) · after IDs · feeds IDs · with IDs · a document · free text
-  indented lines: the note
-## Renumbered                 renames of items not started yet
-## Dropped                    retired items, same line shape, with the date and reason
+### M4 Ships and stations
+Fly to a station, ask to land, …
+### Continuous tracks
+…
 ```
 
-- IDs are `FEATURE-n` (pattern in the config); **n is the build order**: stage n waits for stage n−1 unless the
-  feature is listed as `unordered`.
-- `after` = waits for, `feeds` = the other waits for this, `with` = built together.
-- A document part is a markdown link relative to the board, a path in backticks, a configured short name, or a
-  document's file name (minus configured suffixes), optionally followed by a section (configured anchor patterns,
-  `*Italics*` by default).
+An item document (`<ID>.md`):
 
-## The config (`roadmd.config.json`, at the project's root)
+```markdown
+# EVA-1 EVA: suit flight
+state: done (accepted by Matej 2026-10-24)
+area: FOOT
+milestone: M4
+after: GDD-20 BOARDING-1
+with:
+docs: EVA_SPEC, EVA_TECH
+was:
 
-- `board`, `page`, `title`, `owner`, `nextSize`.
-- `ids.pattern`, `ids.unordered`, `areas.pattern`, `milestones.pattern`.
-- `states`, in pipeline order. Each: `id`, `color` (+ `darkColor`), `meaning`, and any of
-  - `active`: being worked on now (listed *In progress*);
-  - `work`: the work an item in this state is waiting for (`id`, `label`, `next`, `lead`), with `needs`: the state
-    every item it waits for must have reached before this work can start, and `waiting` (label, lead) to list the
-    ones that can't yet;
-  - `earlierStages`: the state every earlier stage of the feature must have reached (an error otherwise);
-  - `requires`: documents the item needs in this state (`docKind`, `review`, `level` warning/error);
-  - `final`: the end (done items are history); `milestoneOptional`.
-- `overview` (the page's and `next`'s order), `next` (the work kinds with a computed Next list), `boardOrder`.
-- `docs`: `include` (globs of embedded documents), `names` (short names), `stemSuffixes`, `anchors`.
-- `docKinds`: groups of documents by glob (`label`, `lead`, `match`, `displayName`), optionally `perItem` (one per
-  item: linked on its line, else `path` with `{feature}`) and `review` (`files`, `line` regex, `states` with match,
-  label, colour and `ok`, an `overview` label, an `index` table written between markers in a file).
+Leaving a ship in space puts the character in EVA: inertia and suit thrusters on the ships' flight model.
+```
 
-Example: [examples/shooterreborn/roadmd.config.json](examples/shooterreborn/roadmd.config.json) (today's rules).
+- The labelled lines are the only parsed part; the body is free text (description, notes, acceptance, discussion).
+- IDs `FEATURE-n`, n the build order (stage n waits for n−1 unless the feature is `unordered` in the config).
+- `after` waits for, `with` built together; `feeds` goes (it is the other item's `after`).
+- A dropped item keeps its document with state `dropped` (a fixed final state outside the pipeline) and its reason, so
+  links to it still mean something.
+- *Next* is computed, never stored.
+- `roadmd convert` turns a single-file board (today's ShooterReborn `ROADMAP.md`) into this format.
 
-## Commands (built: step 1)
+## The config
 
-`roadmd check` · `roadmd build` · `roadmd next [work|doing|review]` · `roadmd show ID`; `--json` on each,
-`--config <file>` (default: found upward from the current folder). Exit 1 on board errors.
+As built in step 1 (README; example `examples/shooterreborn/roadmd.config.json`): states in pipeline order with
+`work` / `needs` / `waiting`, `earlierStages`, `requires`, `active`, `final`; `overview`, `next`, `boardOrder`; the
+documents and their kinds, short names, anchors, review lines; ID patterns. New: `storage` (the adapter and its
+settings) and the board's folder.
 
 ## Steps
 
-1. **Read-only tool and proof** — built. Config-driven check, next, show, build; the page from the config. Proof:
-   ShooterReborn's board from a copy of its `docs/` gives the same `next` lists and the same page data
-   (`proof/compare.mjs`), apart from two fixes of the original's narrow patterns (README *Proof*).
-2. **Editing from the CLI**: `set ID state [note]`, `add`, `title`, `note`, `after`/`with` changes, `move` (milestone,
-   area), `rename`, `drop`, milestone reorder; surgical line edits that keep everything else byte for byte, re-check
-   before writing, refuse what breaks the board; owner-only transitions (decision 7).
-3. **`roadmd serve`**: the page with edit controls calling those operations; refuses an edit when the file changed
-   since the page loaded; reloads when the file changes on disk.
-4. **Agent kit**: the CLAUDE.md snippet (how threads use the board, who changes which state, when to check) and
-   `update` (decision 5).
-5. **Bootstrap**: the procedure, an agent prompt and a Claude Code skill: study a project's documents, code and git
-   history, write its config and first board with each state's evidence, present it for correction.
+1. **Read-only tool and proof** — built (single-file board).
+2. **The item format and the git-folder adapter**: the storage interface, `convert`, check / next / show / build on
+   item documents; proof: ShooterReborn converted gives the same lists and page data as today.
+3. **Edits**: set a state, add, edit title / body / dependencies, move, rename, drop, milestones and areas; each one
+   validated before it is written; owner-only transitions.
+4. **The service**: HTTP server with the page (editing on), the JSON API and the agent tools (MCP over HTTP); deploy
+   to Fly.io.
+5. **The documentation server adapter** and accounts (who may edit, who is the owner).
+6. **Agent kit**: the rules snippet for a project's CLAUDE.md (who changes which state, when to check).
+7. **Bootstrap**: procedure, agent prompt and skill to study a project and write its first board.
 
 ## Open questions
 
-- Decisions 5-10 above (defaults until answered).
+- The documentation server: its code and API (Matej is providing its git folder).
+- Accounts: who signs in, through what, and who is the owner (7, 13).
+- History where the store has none (6).
