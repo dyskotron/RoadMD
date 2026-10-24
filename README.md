@@ -27,6 +27,12 @@ node path/to/roadmd.mjs serve --port 8080   # the page and /api/board, /api/next
 
 Deploying the server (Fly.io): [deploy/README.md](deploy/README.md).
 
+With an Encyclist board, `"docs": { "source": "encyclist" }` makes the knowledge base's own documents the page's
+documents: an item names one by its exact title (or `doc_…` ID), optionally with a section after it, and roadmd keeps
+that link as a `documented_by` relationship, so the document shows its items in Encyclist too.
+
+Starting a project's first board: [bootstrap/PROCEDURE.md](bootstrap/PROCEDURE.md) (and the agent prompt beside it).
+
 Edits (a folder or Encyclist board; each is checked against the whole board and refused if it would add an error,
 and only what it changes is written):
 

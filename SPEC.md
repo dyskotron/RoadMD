@@ -147,9 +147,13 @@ state from which an ID never changes).
      its own record. The API key comes from `keyEnv` (the environment, or `envFile`), never from the config. Proof:
      ShooterReborn's board in the dev app (`encyclist-dev.fly.dev`, its own empty volume and keys, Matej 2026-10-24)
      gives exactly the folder's page data and `next`; tests against an in-memory stand-in (`tests/fake-encyclist.mjs`).
-   - **To do:** Encyclist's documents as the page's documents, and item → document links as `documented_by`
-     relationships (today an item's `docs` are reference strings, as in its file); `if_updated_at` on writes once
-     Encyclist has it; roles (decision 7).
+   - **Built: Encyclist's documents** (`"docs": { "source": "encyclist" }`): the page's documents are the knowledge
+     base's, named by their titles (`docMeta`); a document kind may match `tags` instead of path globs. An item names
+     a document by its exact title or its `doc_…` ID, with an optional section after it; such references are stored as
+     `documented_by` relationships item → document (one per pair, its properties holding the references' text and
+     their order), so a document shows its items in Encyclist; only references to anything else stay in the item's
+     `docs` field. Tested against the stand-in; on the dev app with a copy of the live data (Matej, 2026-10-24).
+   - **To do:** `if_updated_at` on writes once Encyclist has it; roles (decision 7).
 6. **Agent kit**: the rules snippet for a project's CLAUDE.md (who changes which state, when to check).
 7. **Bootstrap**: procedure, agent prompt and skill to study a project and write its first board.
 
