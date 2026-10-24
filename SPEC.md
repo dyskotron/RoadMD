@@ -1,7 +1,7 @@
 # roadmd: spec
 
 > Status: **draft 0.4** (2026-10-24). Matej moved it from a local file tool to a shared remote one: decisions 11-17.
-> Steps 1-3 built (the folder form proved on ShooterReborn: README *Proof*; edits from the CLI); step 5's storage half built (the board as
+> Steps 1-3 and 4a built (roadmd-dev.fly.dev, read only) (the folder form proved on ShooterReborn: README *Proof*; edits from the CLI); step 5's storage half built (the board as
 > Encyclist entities, proved on the dev app encyclist-dev.fly.dev).
 > Step 1 built (read-only tool on today's single-file board, proved on ShooterReborn); the plan below is the new one.
 
@@ -132,6 +132,13 @@ state from which an ID never changes).
    on a copy of the board, so what it derives (the stage before, `feeds`) is never written into items.
 4. **The service**: HTTP server with the page (editing on), the JSON API and the agent tools (MCP over HTTP); deploy
    to Fly.io.
+   - **4a — built:** `roadmd serve` (`lib/server.mjs`, node:http, no dependencies): the page built from the board on a
+     visit (kept 5 s; `?fresh=1` reads again), `/api/board`, `/api/next`, `/api/check`, `/health`; gzip; HTTP Basic auth
+     with `ROADMD_PASSWORD`, everything but `/health`; writes refused. Deployment kit in `deploy/` (Dockerfile,
+     `stage.mjs`, `fly.example.toml`, README). Running: `roadmd-dev.fly.dev`, ShooterReborn's board from
+     `encyclist-dev` with its documents in the image.
+   - **4b — to do:** editing on the page (the edits of step 3 through a JSON API, refused when the board changed since
+     the page loaded), then the agent tools over MCP.
 5. **The Encyclist adapter** (decision 16) and accounts (who may edit, who is the owner).
    - **Built: the board as entities** (`lib/encyclist.mjs`, over `lib/mcp.mjs`, a dependency-free MCP client): entity
      types `<prefix>_board`, `_area`, `_milestone` (with `order`), `_item` (the folder file's fields; a dropped item

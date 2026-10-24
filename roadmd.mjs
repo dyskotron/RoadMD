@@ -5,6 +5,7 @@
 //   roadmd build                 check, then write the page (and the review indexes)
 //   roadmd next [work]           what can be worked on now; work = a work id from the config, doing, or review
 //   roadmd show ID               one item: its state, documents, what it waits for and unblocks
+//   roadmd serve [--port 8080]   the page and the board over HTTP (ROADMD_PASSWORD: a password for it)
 //   roadmd convert [dir]         move a single-file board into a folder of item files (default: roadmap/ beside it)
 //   roadmd convert --to-config <file>   copy this board into the storage another config names (e.g. an Encyclist)
 //
@@ -22,7 +23,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findConfig, CONFIG_NAME } from "./lib/config.mjs";
-import { loadModel, pageData } from "./lib/model.mjs";
+import { loadModel } from "./lib/model.mjs";
+import { renderPage } from "./lib/page.mjs";
+import { startServer } from "./lib/server.mjs";
 import { toFolder } from "./lib/convert.mjs";
 import { openStorage } from "./lib/storage.mjs";
 import { loadConfig } from "./lib/config.mjs";
@@ -34,6 +37,7 @@ const argv = process.argv.slice(2);
 const flag = (name) => { const i = argv.indexOf(name); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, 2); return v; };
 const configArg = flag("--config");
 const toConfig = flag("--to-config");
+const portArg = flag("--port");
 const force = argv.includes("--force"); if (force) argv.splice(argv.indexOf("--force"), 1);
 const json = argv.includes("--json"); if (json) argv.splice(argv.indexOf("--json"), 1);
 if (argv.includes("--check")) { argv.splice(argv.indexOf("--check"), 1); argv.unshift("check"); }
@@ -43,11 +47,17 @@ const out = (o) => console.log(JSON.stringify(o, null, 2));
 function fail(msg, code = 2) { if (json) out({ ok: false, error: msg }); else console.error(msg); process.exit(code); }
 
 if (["help", "-h", "--help"].includes(cmd)) {
-  console.log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 21).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
+  console.log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 22).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
   process.exit(0);
 }
 const configFile = configArg ? path.resolve(configArg) : findConfig(process.cwd()) || findConfig(here);
 if (!configFile) fail(`no ${CONFIG_NAME} found here or above (or pass --config)`);
+
+if (cmd === "serve") {
+  // the board is read on each visit: start even if it has errors (the page shows them)
+  await startServer({ configFile, port: +(portArg || process.env.PORT || 8080) });
+  await new Promise(() => {}); // until stopped
+}
 
 let m;
 try { m = await loadModel(configFile, { writeIndexes: cmd === "build" }); }
@@ -64,16 +74,7 @@ if (cmd === "check" || cmd === "build") {
   console.log(`${m.all.length} items in ${m.board.areas.length} areas, ${m.board.milestones.filter((x) => !x.continuous).length} milestones; ` + cfg.states.map((s) => `${s.id} ${counts[s.id]}`).join(", "));
   if (errors.length) { console.error(`${errors.length} error(s)`); process.exit(1); }
   if (cmd === "check") { console.log("check passed" + (warnings.length ? ` with ${warnings.length} warning(s)` : "")); process.exit(0); }
-  const template = fs.readFileSync(path.join(here, "page", "page.html"), "utf8");
-  const generated = new Date().toISOString().slice(0, 10);
-  const data = pageData(m, generated);
-  const BS = "\\", LS = " ", PS = " ";
-  const enc = (o) => JSON.stringify(o).split("</").join("<" + BS + "/").split(LS).join(BS + "u2028").split(PS).join(BS + "u2029");
-  const html = template
-    .replace("/*__DATA__*/", () => `window.ROADMAP = ${enc(data)};\nwindow.DOCS = ${enc(m.docs)};`)
-    .replace(/__TITLE__/g, () => data.title.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])))
-    .replace(/__BOARD__/g, () => cfg.board)
-    .replace(/__GENERATED__/g, generated);
+  const html = renderPage(m);
   const outAbs = path.join(cfg.root, cfg.page);
   fs.mkdirSync(path.dirname(outAbs), { recursive: true });
   fs.writeFileSync(outAbs, html, "utf8");

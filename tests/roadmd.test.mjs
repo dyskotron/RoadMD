@@ -353,3 +353,24 @@ test("edits on Encyclist: only the changed fields of the changed records", async
     assert.equal((await roadmdAsync(dir, "check", "--config", "encyclist.config.json")).ok, true);
   } finally { await fake.close(); }
 });
+
+// ---- serve
+import { startServer } from "../lib/server.mjs";
+test("serve: the page and the API behind the password, /health open", async () => {
+  const server = await startServer({ configFile: path.join(fixture, "roadmd.config.json"), port: 0, host: "127.0.0.1", password: "pw", log: () => {} });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const auth = { authorization: "Basic " + Buffer.from("anyone:pw").toString("base64") };
+  try {
+    assert.equal((await fetch(`${base}/health`)).status, 200);
+    assert.equal((await fetch(`${base}/`)).status, 401);
+    assert.equal((await fetch(`${base}/`, { headers: { authorization: "Basic " + Buffer.from("x:wrong").toString("base64") } })).status, 401);
+    const page = await fetch(`${base}/`, { headers: auth });
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /<title>Fixture roadmap<\/title>/);
+    const next = await (await fetch(`${base}/api/next`, { headers: auth })).json();
+    assert.deepEqual(next.sections.find((s) => s.id === "build").items.map((i) => i.id), ["CORE-3"]);
+    const board = await (await fetch(`${base}/api/board`, { headers: auth })).json();
+    assert.equal(Object.keys(board.items).length, 9);
+    assert.equal((await fetch(`${base}/api/board`, { method: "POST", headers: auth })).status, 405);
+  } finally { server.close(); }
+});

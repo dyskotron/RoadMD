@@ -22,7 +22,10 @@ node path/to/roadmd.mjs next build     # one kind of work (the config's work ids
 node path/to/roadmd.mjs show EVA-1     # one item
 node path/to/roadmd.mjs convert        # a single-file board into a folder (default: roadmap/ beside it)
 node path/to/roadmd.mjs convert --to-config other.json   # copy the board into another config's storage (e.g. Encyclist)
+node path/to/roadmd.mjs serve --port 8080   # the page and /api/board, /api/next, /api/check over HTTP (ROADMD_PASSWORD)
 ```
+
+Deploying the server (Fly.io): [deploy/README.md](deploy/README.md).
 
 Edits (a folder or Encyclist board; each is checked against the whole board and refused if it would add an error,
 and only what it changes is written):
@@ -58,6 +61,8 @@ Tests: `npm test` (Node's own runner, no dependencies; a small board in `tests/f
 - `lib/folder.mjs` — the folder format, read and written (pure).
 - `lib/convert.mjs` — a board moved into the folder format.
 - `lib/edit.mjs` — edits: applied to a copy, the board checked again, only the changes written.
+- `lib/server.mjs` — `roadmd serve`; `lib/page.mjs` — the page, for build and serve alike.
+- `deploy/` — the Dockerfile, `stage.mjs` and an example `fly.toml` for running it on Fly.
 - `lib/docs.mjs` — embedded documents, document references, review lines and indexes.
 - `lib/analyze.mjs` — the checks, what can be worked on, the ranking (pure).
 - `lib/model.mjs` — one run's model and the page's data.
