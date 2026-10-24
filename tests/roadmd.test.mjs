@@ -166,3 +166,77 @@ test("build writes the page with the board and the documents embedded", () => {
   assert.match(html, /"UI-2":\{"id":"UI-2"/);
   assert.match(html, /"docs\/CORE_SPEC\.md":"# Core spec/);
 });
+
+// ---- the Encyclist adapter, against an in-memory stand-in (tests/fake-encyclist.mjs)
+import { startFakeEncyclist } from "./fake-encyclist.mjs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+const run = promisify(execFile);
+const roadmdAsync = async (dir, ...args) => JSON.parse((await run("node", [cli, ...args, "--json"], { cwd: dir })).stdout);
+// the failing run, async: a synchronous child would block this process, which hosts the fake server
+const roadmdFailsAsync = async (dir, ...args) => {
+  try { await run("node", [cli, ...args, "--json"], { cwd: dir }); return null; }
+  catch (e) { return JSON.parse(e.stdout); }
+};
+
+async function encyclistCopy(fake) {
+  const dir = copy();
+  fs.writeFileSync(path.join(dir, ".test.env"), `FAKE_ENCYCLIST_KEY=${fake.key}\n`);
+  const cfg = JSON.parse(fs.readFileSync(path.join(dir, "roadmd.config.json"), "utf8"));
+  cfg.storage = { type: "encyclist", url: fake.url, keyEnv: "FAKE_ENCYCLIST_KEY", envFile: ".test.env", base: "docs/roadmap" };
+  fs.writeFileSync(path.join(dir, "encyclist.config.json"), JSON.stringify(cfg));
+  return dir;
+}
+
+for (const sse of [false, true]) test(`encyclist: convert, then the same answers as the file${sse ? " (answers as events)" : ""}`, async () => {
+  const fake = await startFakeEncyclist({ sse });
+  try {
+    const dir = await encyclistCopy(fake);
+    const before = await roadmdAsync(dir, "next");
+    const c = await roadmdAsync(dir, "convert", "--to-config", "encyclist.config.json");
+    assert.equal(c.items, 9);
+    assert.equal([...fake.types.keys()].filter((t) => t.startsWith("roadmap_")).length, 4);
+    assert.equal([...fake.entities.values()].filter((e) => e.type === "roadmap_item").length, 10);  // 9 + the dropped one
+    const after = await roadmdAsync(dir, "next", "--config", "encyclist.config.json");
+    assert.deepEqual(after, before);
+    const show = await roadmdAsync(dir, "show", "UI-1", "--config", "encyclist.config.json");
+    assert.deepEqual(show.after, ["CORE-2"]);
+    assert.equal(show.docs.tech, "docs/tech/UI_TECH.md");             // the link, rewritten for base, still resolves
+    await assert.rejects(roadmdAsync(dir, "convert", "--to-config", "encyclist.config.json"));  // it holds a board now
+  } finally { await fake.close(); }
+});
+
+test("encyclist: an item written back changes only its own record", async () => {
+  const fake = await startFakeEncyclist();
+  try {
+    const dir = await encyclistCopy(fake);
+    await roadmdAsync(dir, "convert", "--to-config", "encyclist.config.json");
+    const cfgFile = path.join(dir, "encyclist.config.json");
+    const m = await loadModel(cfgFile);
+    const before = JSON.stringify([...fake.entities.values()].filter((e) => e.data.key !== "MAP-1"));
+    const it = m.board.items["MAP-1"];
+    it.state = "design"; it.note = ["Being designed."];
+    await m.storage.writeItem(it);
+    const m2 = await loadModel(cfgFile);
+    assert.equal(m2.board.items["MAP-1"].state, "design");
+    assert.deepEqual(m2.board.items["MAP-1"].note, ["Being designed."]);
+    assert.equal(JSON.stringify([...fake.entities.values()].filter((e) => e.data.key !== "MAP-1")), before);
+  } finally { await fake.close(); }
+});
+
+test("encyclist: a wrong key and an empty knowledge base are clear errors", async () => {
+  const fake = await startFakeEncyclist();
+  try {
+    const dir = await encyclistCopy(fake);
+    const empty = await roadmdFailsAsync(dir, "check", "--config", "encyclist.config.json");
+    assert.match(empty.errors.join("\n"), /no board here yet/);
+    fs.writeFileSync(path.join(dir, ".test.env"), "FAKE_ENCYCLIST_KEY=wrong\n");
+    const bad = await roadmdFailsAsync(dir, "check", "--config", "encyclist.config.json");
+    assert.match(bad.error, /not authorised \(401\)/);
+    const p = path.join(dir, "encyclist.config.json");
+    const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
+    cfg.storage.key = "sk-in-the-config";
+    fs.writeFileSync(p, JSON.stringify(cfg));
+    assert.match((await roadmdFailsAsync(dir, "check", "--config", "encyclist.config.json")).error, /never put the API key in the config/);
+  } finally { await fake.close(); }
+});

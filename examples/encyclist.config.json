@@ -1,0 +1,25 @@
+{
+  "title": "Project roadmap",
+  "owner": "Matej",
+  "storage": {
+    "type": "encyclist",
+    "url": "https://encyclist-dev.fly.dev/mcp",
+    "keyEnv": "ENCYCLIST_DEV_KEY",
+    "envFile": ".dev.env",
+    "typePrefix": "roadmap"
+  },
+  "page": "roadmap.html",
+  "states": [
+    { "id": "backlog", "color": "#9ca3af", "darkColor": "#6b7280", "milestoneOptional": true,
+      "work": { "id": "design", "label": "To design", "next": "Next to design", "needs": "tech" } },
+    { "id": "design", "color": "#7c3aed", "active": true },
+    { "id": "tech", "color": "#0d9488",
+      "work": { "id": "tech", "label": "To tech-design", "next": "Next to tech-design", "needs": "ready", "waiting": { "label": "Tech but waiting" } } },
+    { "id": "ready", "color": "#d97706",
+      "work": { "id": "build", "label": "To build", "next": "Next to build", "needs": "test", "waiting": { "label": "Ready but waiting" } } },
+    { "id": "doing", "color": "#2563eb", "active": true, "earlierStages": "test" },
+    { "id": "test", "color": "#db2777", "earlierStages": "test", "work": { "id": "test", "label": "To test" } },
+    { "id": "done", "color": "#16a34a", "darkColor": "#22c55e", "final": true }
+  ],
+  "docs": { "include": ["docs/**/*.md"] }
+}

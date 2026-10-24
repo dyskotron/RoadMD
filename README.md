@@ -9,8 +9,10 @@ work from it. Git is the history. Node 18+, no dependencies. Design and plan: [S
 Put a `roadmd.config.json` at the project's root (start from
 [examples/shooterreborn/roadmd.config.json](examples/shooterreborn/roadmd.config.json)). Its `storage` says where
 the board lives: `{ "type": "folder", "path": "docs/roadmap" }` (one markdown file per item, plus `_board.md`:
-SPEC.md *The format*) or `{ "type": "file", "path": "docs/ROADMAP.md" }` (the older single file, read only). Then
-from anywhere in the project:
+SPEC.md *The format*), `{ "type": "encyclist", "url": "…/mcp", "keyEnv": "…" }` (entities of an Encyclist knowledge
+base: [examples/encyclist.config.json](examples/encyclist.config.json); the API key from that environment variable or
+an `envFile`, never from the config) or `{ "type": "file", "path": "docs/ROADMAP.md" }` (the older single file, read
+only). Then from anywhere in the project:
 
 ```bash
 node path/to/roadmd.mjs check          # check the board, write nothing; exit 1 on an error
@@ -19,18 +21,21 @@ node path/to/roadmd.mjs next           # what can be worked on now, and Next
 node path/to/roadmd.mjs next build     # one kind of work (the config's work ids), doing, or review
 node path/to/roadmd.mjs show EVA-1     # one item
 node path/to/roadmd.mjs convert        # a single-file board into a folder (default: roadmap/ beside it)
+node path/to/roadmd.mjs convert --to-config other.json   # copy the board into another config's storage (e.g. Encyclist)
 ```
 
 Add `--json` for machine-readable output, `--config <file>` to point at a config elsewhere.
 
-Tests: `npm test` (Node's own runner, no dependencies; a small board in `tests/fixture`).
+Tests: `npm test` (Node's own runner, no dependencies; a small board in `tests/fixture`, an in-memory Encyclist in
+`tests/fake-encyclist.mjs`).
 
 ## Files
 
 - `roadmd.mjs` — the CLI.
 - `lib/config.mjs` — loads and checks the config.
 - `lib/ids.mjs` — the patterns every format shares, and the item model.
-- `lib/storage.mjs` — where a board lives: `file` or `folder` (async: Encyclist comes next).
+- `lib/storage.mjs` — where a board lives: `file`, `folder` or `encyclist` (async).
+- `lib/encyclist.mjs` — the board as Encyclist entities; `lib/mcp.mjs` — the MCP client it talks through.
 - `lib/single.mjs` — the single-file format, read into the model (pure).
 - `lib/folder.mjs` — the folder format, read and written (pure).
 - `lib/convert.mjs` — a board moved into the folder format.
@@ -49,6 +54,10 @@ node proof/shooterreborn.mjs C:/DATA/PROJECTS/ShooterReborn <scratch dir>
 It copies ShooterReborn's `docs/`, `CLAUDE.md`, the two Assets readmes and its `tools/roadmap` from `dev` (`git
 archive`: the repository is never changed), builds the page with ShooterReborn's own script, then with roadmd from the
 single file, then converts it to a folder and builds again, and compares the three.
+
+Encyclist (2026-10-24): the same board copied into the dev app (`roadmd convert --to-config` with a config whose
+storage is `encyclist-dev.fly.dev`) and read back gives exactly the folder's page data and `next`, in the same order;
+the board loads from it in about half a second.
 
 Step 2, 2026-10-24: the folder gives exactly what the single file gives (page data and `next`); against the original
 script only the step-1 fixes below and `---` rules no longer leaking into the last area's and the continuous track's

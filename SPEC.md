@@ -1,7 +1,8 @@
 # roadmd: spec
 
 > Status: **draft 0.4** (2026-10-24). Matej moved it from a local file tool to a shared remote one: decisions 11-17.
-> Steps 1-2 built (the folder form proved on ShooterReborn: README *Proof*).
+> Steps 1-2 built (the folder form proved on ShooterReborn: README *Proof*); step 5's storage half built (the board as
+> Encyclist entities, proved on the dev app encyclist-dev.fly.dev).
 > Step 1 built (read-only tool on today's single-file board, proved on ShooterReborn); the plan below is the new one.
 
 A very small Jira for working with AI agents. The board is a set of small markdown documents stored next to the
@@ -120,8 +121,17 @@ settings) and the board's folder.
    validated before it is written; owner-only transitions.
 4. **The service**: HTTP server with the page (editing on), the JSON API and the agent tools (MCP over HTTP); deploy
    to Fly.io.
-5. **The Encyclist adapter** (decision 16; it needs a local Encyclist to prove it on: Docker on Matej's PC is broken
-   and it has no Python) and accounts (who may edit, who is the owner).
+5. **The Encyclist adapter** (decision 16) and accounts (who may edit, who is the owner).
+   - **Built: the board as entities** (`lib/encyclist.mjs`, over `lib/mcp.mjs`, a dependency-free MCP client): entity
+     types `<prefix>_board`, `_area`, `_milestone` (with `order`), `_item` (the folder file's fields; a dropped item
+     keeps its record with state `dropped`); the board loads in four queries; `roadmd convert --to-config <file>` copies
+     any board into it (refusing a store that already holds one); an item is written back by `ec_entity_update`, only
+     its own record. The API key comes from `keyEnv` (the environment, or `envFile`), never from the config. Proof:
+     ShooterReborn's board in the dev app (`encyclist-dev.fly.dev`, its own empty volume and keys, Matej 2026-10-24)
+     gives exactly the folder's page data and `next`; tests against an in-memory stand-in (`tests/fake-encyclist.mjs`).
+   - **To do:** Encyclist's documents as the page's documents, and item → document links as `documented_by`
+     relationships (today an item's `docs` are reference strings, as in its file); `if_updated_at` on writes once
+     Encyclist has it; roles (decision 7).
 6. **Agent kit**: the rules snippet for a project's CLAUDE.md (who changes which state, when to check).
 7. **Bootstrap**: procedure, agent prompt and skill to study a project and write its first board.
 

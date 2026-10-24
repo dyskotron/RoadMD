@@ -6,6 +6,7 @@
 //   roadmd next [work]           what can be worked on now; work = a work id from the config, doing, or review
 //   roadmd show ID               one item: its state, documents, what it waits for and unblocks
 //   roadmd convert [dir]         move a single-file board into a folder of item files (default: roadmap/ beside it)
+//   roadmd convert --to-config <file>   copy this board into the storage another config names (e.g. an Encyclist)
 //
 //   --config <file>   the project's roadmd.config.json (default: found from the current folder upward)
 //   --json            machine-readable output
@@ -16,11 +17,14 @@ import { findConfig, CONFIG_NAME } from "./lib/config.mjs";
 import { loadModel, pageData } from "./lib/model.mjs";
 import { toFolder } from "./lib/convert.mjs";
 import { openStorage } from "./lib/storage.mjs";
+import { loadConfig } from "./lib/config.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
 const flag = (name) => { const i = argv.indexOf(name); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, 2); return v; };
 const configArg = flag("--config");
+const toConfig = flag("--to-config");
+const force = argv.includes("--force"); if (force) argv.splice(argv.indexOf("--force"), 1);
 const json = argv.includes("--json"); if (json) argv.splice(argv.indexOf("--json"), 1);
 if (argv.includes("--check")) { argv.splice(argv.indexOf("--check"), 1); argv.unshift("check"); }
 const [cmd = "build", ...args] = argv;
@@ -76,20 +80,27 @@ if (errors.length) {
 
 // ---- convert
 if (cmd === "convert") {
-  if (m.storage.type !== "file") fail(`convert moves a single-file board into a folder; this board is already a ${m.storage.type}`);
-  const given = args.find((a) => !a.startsWith("--"));
-  const dir = (given || path.posix.join(path.posix.dirname(cfg.storage.path), "roadmap")).replace(/\\/g, "/").replace(/\/$/, "");
-  const abs = path.join(cfg.root, dir);
-  if (fs.existsSync(abs) && fs.readdirSync(abs).length && !process.argv.includes("--force")) fail(`${dir} isn't empty (--force writes into it anyway)`);
+  let target, where, linkDir;
+  if (toConfig) {
+    const tc = loadConfig(path.resolve(toConfig));
+    target = openStorage(tc);
+    where = target.path;
+    linkDir = tc.storage.type === "folder" ? tc.storage.path : (tc.storage.base ?? m.board.base ?? "");
+  } else {
+    if (m.storage.type !== "file") fail(`convert [dir] moves a single-file board into a folder; this board is already a ${m.storage.type} (copy it elsewhere with --to-config)`);
+    const given = args.find((a) => !a.startsWith("--"));
+    linkDir = (given || path.posix.join(path.posix.dirname(cfg.storage.path), "roadmap")).replace(/\\/g, "/").replace(/\/$/, "");
+    target = openStorage({ ...cfg, storage: { type: "folder", path: linkDir } });
+    where = linkDir + "/";
+  }
   const notes = [];
-  const { board } = toFolder(m.board, cfg, m.resolveRef, dir, (w) => notes.push(w));
-  const target = openStorage({ ...cfg, storage: { type: "folder", path: dir } });
-  await target.writeAll(board);
+  const { board } = toFolder(m.board, cfg, m.resolveRef, linkDir, (w) => notes.push(w));
+  try { await target.writeAll(board, { force }); } catch (e) { fail(e.message); }
   const n = Object.keys(board.items).length, d = board.dropped.length;
-  if (json) { out({ ok: true, dir, items: n, dropped: d, notes }); process.exit(0); }
+  if (json) { out({ ok: true, to: where, items: n, dropped: d, notes }); process.exit(0); }
   for (const w of notes) console.warn("note: " + w);
-  console.log(`wrote ${dir}/: _board.md, ${n} items, ${d} dropped`);
-  console.log(`next: set "storage": { "type": "folder", "path": "${dir}" } in ${path.relative(process.cwd(), cfg.file) || cfg.file}, run roadmd check, then remove ${cfg.storage.path}`);
+  console.log(`wrote ${where}: the board, ${n} items, ${d} dropped`);
+  if (!toConfig) console.log(`next: set "storage": { "type": "folder", "path": "${linkDir}" } in ${path.relative(process.cwd(), cfg.file) || cfg.file}, run roadmd check, then remove ${cfg.storage.path}`);
   process.exit(0);
 }
 
