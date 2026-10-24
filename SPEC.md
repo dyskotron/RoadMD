@@ -1,7 +1,7 @@
 # roadmd: spec
 
 > Status: **draft 0.4** (2026-10-24). Matej moved it from a local file tool to a shared remote one: decisions 11-17.
-> Steps 1-2 built (the folder form proved on ShooterReborn: README *Proof*); step 5's storage half built (the board as
+> Steps 1-3 built (the folder form proved on ShooterReborn: README *Proof*; edits from the CLI); step 5's storage half built (the board as
 > Encyclist entities, proved on the dev app encyclist-dev.fly.dev).
 > Step 1 built (read-only tool on today's single-file board, proved on ShooterReborn); the plan below is the new one.
 
@@ -22,8 +22,10 @@ process lives in its config.
 5. ~~How a project gets it: a copied folder~~ — superseded by 13 (it runs as a service; a local run stays possible).
 6. **Edits and history** (open): the store's own history where it has one (git: one commit per edit); otherwise
    roadmd keeps a short log of board edits.
-7. **Owner-only changes** (open): the config marks transitions only the owner makes (`test → done`); with accounts
-   (15) this is enforced, not a convention.
+7. **Owner-only changes** (built as a convention, step 3): a state with `"ownerOnly": true` (ShooterReborn: `done`) is
+   refused unless the edit says `owner` (the CLI's `--owner`, which the agent rules forbid unless the owner said so);
+   `ownerNote` (`"accepted by {owner} {date}"`) becomes its note when none is given. With accounts (step 5) it is
+   enforced.
 8. **Rename** (default): roadmd's operation, never by hand: the item's document, every item that refers to it, and a
    `was:` line on the item; documents that mention the old ID are listed for the agent to fix.
 9. **Stack** (default): Node 18+, no dependencies unless they earn their place, one HTML page.
@@ -103,8 +105,9 @@ Leaving a ship in space puts the character in EVA: inertia and suit thrusters on
 
 As built in step 1 (README; example `examples/shooterreborn/roadmd.config.json`): states in pipeline order with
 `work` / `needs` / `waiting`, `earlierStages`, `requires`, `active`, `final`; `overview`, `next`, `boardOrder`; the
-documents and their kinds, short names, anchors, review lines; ID patterns. New: `storage` (the adapter and its
-settings) and the board's folder.
+documents and their kinds, short names, anchors, review lines; ID patterns. Since: `storage` (the adapter and its
+settings: `file`, `folder`, `encyclist`), a state's `ownerOnly` and `ownerNote` (decision 7), `ids.fixedFrom` (the
+state from which an ID never changes).
 
 ## Steps
 
@@ -117,8 +120,16 @@ settings) and the board's folder.
    parts are kept as `docs:` (those that resolve to a document) and `text:`; relative links are rewritten for the
    item's folder; items in an area are ordered by ID (feature, then stage), no longer by their place in one file;
    `---` rules between sections are never content.
-3. **Edits**: set a state, add, edit title / body / dependencies, move, rename, drop, milestones and areas; each one
-   validated before it is written; owner-only transitions.
+3. **Edits** — built (`lib/edit.mjs`, the CLI's `set`, `add`, `edit`, `after`, `with`, `move`, `rename`, `drop`,
+   `milestone add|set|move`, `area add|set`; `--dry-run`, `--json`). Each edit is applied to a copy of the board, the
+   whole board is checked again, and it is refused (nothing written) when it adds an error; a board that already has
+   errors can still be edited. Only what changed is written: the item's file or record (Encyclist: only the changed
+   fields, an emptied one cleared), `_board.md` / the area and milestone records for board-wide edits. As built:
+   moving an item to another area moves every stage of its feature (one feature, one area); a rename updates every
+   `after`/`with` naming the item, keeps the old ID in `was`, and is refused from `ids.fixedFrom` on (ShooterReborn:
+   `doing`); a drop is refused while any item names the item, and writes `<date>, dropped: <reason>`; an ID is never
+   reused (an existing or dropped one is refused); the single file is read only (`convert` first). The engine works
+   on a copy of the board, so what it derives (the stage before, `feeds`) is never written into items.
 4. **The service**: HTTP server with the page (editing on), the JSON API and the agent tools (MCP over HTTP); deploy
    to Fly.io.
 5. **The Encyclist adapter** (decision 16) and accounts (who may edit, who is the owner).

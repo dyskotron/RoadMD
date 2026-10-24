@@ -4,7 +4,7 @@
   "storage": { "type": "file", "path": "docs/ROADMAP.md" },
   "page": "docs/roadmap.html",
   "nextSize": 5,
-  "ids": { "pattern": "[A-Z]{2,12}-\\d+", "unordered": ["GDD", "NEBULA"] },
+  "ids": { "pattern": "[A-Z]{2,12}-\\d+", "unordered": ["GDD", "NEBULA"], "fixedFrom": "doing" },
   "areas": { "pattern": "[A-Z]{2,5}" },
   "milestones": { "pattern": "M\\d+" },
 
@@ -26,7 +26,7 @@
     { "id": "doing", "color": "#2563eb", "active": true, "earlierStages": "test", "meaning": "being built, in its branch" },
     { "id": "test", "color": "#db2777", "earlierStages": "test", "meaning": "built and merged, waiting for its test and the owner's look",
       "work": { "id": "test", "label": "To test", "lead": "Built, waiting for its test procedure and your look." } },
-    { "id": "done", "color": "#16a34a", "darkColor": "#22c55e", "final": true, "meaning": "tested and accepted" }
+    { "id": "done", "color": "#16a34a", "darkColor": "#22c55e", "final": true, "ownerOnly": true, "ownerNote": "accepted by {owner} {date}", "meaning": "tested and accepted" }
   ],
   "inProgress": { "label": "In progress" },
   "overview": ["test", "inProgress", "next", "build", "tech", "design", "reviews"],

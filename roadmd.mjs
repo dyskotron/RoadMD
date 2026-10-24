@@ -8,6 +8,14 @@
 //   roadmd convert [dir]         move a single-file board into a folder of item files (default: roadmap/ beside it)
 //   roadmd convert --to-config <file>   copy this board into the storage another config names (e.g. an Encyclist)
 //
+// Edits (a folder or an Encyclist board; each is checked against the whole board and refused if it adds an error):
+//   roadmd set ID state [note]                    roadmd add ID "Title" --area A [--state s] [--milestone M] [--after "X Y"]
+//   roadmd edit ID [--title t] [--note n] [--state-note n] [--docs "a · b"] [--text "a · b"]
+//   roadmd after ID X -Y   (+X or X adds, -Y removes; also: roadmd with ID …)
+//   roadmd move ID [--milestone M|none] [--area A]     roadmd rename OLD NEW     roadmd drop ID "reason"
+//   roadmd milestone add|set|move M [--title t] [--tag t] [--body b] [--before M2]     roadmd area add|set A [--title t] [--intro i]
+//   --dry-run checks without writing; --owner for an owner-only state (only when the owner says so)
+//
 //   --config <file>   the project's roadmd.config.json (default: found from the current folder upward)
 //   --json            machine-readable output
 import fs from "node:fs";
@@ -18,6 +26,8 @@ import { loadModel, pageData } from "./lib/model.mjs";
 import { toFolder } from "./lib/convert.mjs";
 import { openStorage } from "./lib/storage.mjs";
 import { loadConfig } from "./lib/config.mjs";
+import { applyEdit, EditError } from "./lib/edit.mjs";
+import { parseArgs } from "node:util";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -33,7 +43,7 @@ const out = (o) => console.log(JSON.stringify(o, null, 2));
 function fail(msg, code = 2) { if (json) out({ ok: false, error: msg }); else console.error(msg); process.exit(code); }
 
 if (["help", "-h", "--help"].includes(cmd)) {
-  console.log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 12).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
+  console.log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 21).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
   process.exit(0);
 }
 const configFile = configArg ? path.resolve(configArg) : findConfig(process.cwd()) || findConfig(here);
@@ -69,6 +79,52 @@ if (cmd === "check" || cmd === "build") {
   fs.writeFileSync(outAbs, html, "utf8");
   console.log(`wrote ${cfg.page} (${(html.length / 1024).toFixed(0)} KB, ${Object.keys(m.docs).length} documents embedded)`);
   process.exit(0);
+}
+
+// ---- edits (a board with errors can still be edited: an edit is refused only if it adds one)
+const EDITS = ["set", "add", "edit", "after", "with", "move", "rename", "drop", "milestone", "area"];
+if (EDITS.includes(cmd)) {
+  let p;
+  try {
+    // after / with take their IDs as written: -X removes, which an option parser would read as an option
+    if (cmd === "after" || cmd === "with") p = { values: { "dry-run": args.includes("--dry-run") }, positionals: args.filter((x) => x !== "--dry-run") };
+    else p = parseArgs({ args, allowPositionals: true, strict: true, options: {
+      title: { type: "string" }, note: { type: "string" }, "state-note": { type: "string" }, state: { type: "string" },
+      area: { type: "string" }, milestone: { type: "string" }, after: { type: "string" }, with: { type: "string" },
+      docs: { type: "string" }, text: { type: "string" }, tag: { type: "string" }, body: { type: "string" }, intro: { type: "string" },
+      before: { type: "string" }, owner: { type: "boolean" }, "dry-run": { type: "boolean" },
+    } });
+  } catch (e) { fail(`${cmd}: ${e.message} (roadmd help)`); }
+  const o = p.values, pos = p.positionals;
+  const ids = (v) => (v ? v.split(/[\s,]+/).filter(Boolean) : undefined);
+  const list = (v) => (v === undefined ? undefined : v.split(" · ").map((x) => x.trim()).filter(Boolean));
+  const need = (n, usage) => { if (pos.length < n) fail(`usage: roadmd ${usage}`); };
+  let e;
+  if (cmd === "set") { need(2, "set ID state [note]"); e = { op: "set", id: pos[0], state: pos[1], note: pos.slice(2).join(" ") || o.note, owner: o.owner }; }
+  else if (cmd === "add") { need(2, 'add ID "Title" --area A'); e = { op: "add", id: pos[0], title: pos.slice(1).join(" "), area: o.area, state: o.state, milestone: o.milestone, after: ids(o.after), with: ids(o.with), docs: list(o.docs), text: list(o.text), note: o.note, owner: o.owner }; }
+  else if (cmd === "edit") { need(1, "edit ID [--title …] [--note …]"); e = { op: "edit", id: pos[0], title: o.title, note: o.note, stateNote: o["state-note"], docs: list(o.docs), text: list(o.text) }; }
+  else if (cmd === "after" || cmd === "with") {
+    need(2, `${cmd} ID X -Y`);
+    const rest = pos.slice(1);
+    e = { op: "deps", id: pos[0], list: cmd, add: rest.filter((x) => !x.startsWith("-")).map((x) => x.replace(/^\+/, "")), remove: rest.filter((x) => x.startsWith("-")).map((x) => x.slice(1)) };
+  }
+  else if (cmd === "move") { need(1, "move ID [--milestone M|none] [--area A]"); e = { op: "move", id: pos[0], milestone: o.milestone === undefined ? undefined : o.milestone === "none" ? null : o.milestone, area: o.area }; }
+  else if (cmd === "rename") { need(2, "rename OLD NEW"); e = { op: "rename", id: pos[0], to: pos[1] }; }
+  else if (cmd === "drop") { need(2, 'drop ID "reason"'); e = { op: "drop", id: pos[0], reason: pos.slice(1).join(" ") }; }
+  else if (cmd === "milestone") { need(2, "milestone add|set|move M …"); if (!["add", "set", "move"].includes(pos[0])) fail("usage: roadmd milestone add|set|move M …"); e = { op: `milestone-${pos[0]}`, id: pos[1], title: o.title ?? (pos.length > 2 ? pos.slice(2).join(" ") : undefined), tag: o.tag, body: o.body, before: o.before }; }
+  else if (cmd === "area") { need(2, "area add|set A …"); if (!["add", "set"].includes(pos[0])) fail("usage: roadmd area add|set A …"); e = { op: `area-${pos[0]}`, id: pos[1], title: o.title ?? (pos.length > 2 ? pos.slice(2).join(" ") : undefined), intro: o.intro }; }
+  try {
+    const r = await applyEdit(m, e, { dryRun: !!o["dry-run"] });
+    if (json) out({ ok: true, ...r });
+    else console.log((r.written ? "" : "would do (dry run): ") + r.summary);
+    process.exit(0);
+  } catch (err) {
+    if (!(err instanceof EditError)) throw err;
+    if (json) { out({ ok: false, error: err.message, errors: err.errors }); process.exit(1); }
+    console.error(err.message);
+    for (const x of err.errors) console.error("  error: " + x);
+    process.exit(1);
+  }
 }
 
 if (errors.length) {

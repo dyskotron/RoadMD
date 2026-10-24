@@ -11,7 +11,7 @@
       "work": { "id": "build", "label": "To build", "needs": "test", "waiting": { "label": "Ready but waiting" } } },
     { "id": "doing", "color": "#26e", "active": true, "earlierStages": "test" },
     { "id": "test", "color": "#d27", "earlierStages": "test", "work": { "id": "test", "label": "To test" } },
-    { "id": "done", "color": "#1a4", "final": true }
+    { "id": "done", "color": "#1a4", "final": true, "ownerOnly": true, "ownerNote": "accepted by {owner} {date}" }
   ],
   "docs": { "include": ["docs/**/*.md"], "stemSuffixes": ["SPEC"] },
   "docKinds": [

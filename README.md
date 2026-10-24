@@ -24,6 +24,24 @@ node path/to/roadmd.mjs convert        # a single-file board into a folder (defa
 node path/to/roadmd.mjs convert --to-config other.json   # copy the board into another config's storage (e.g. Encyclist)
 ```
 
+Edits (a folder or Encyclist board; each is checked against the whole board and refused if it would add an error,
+and only what it changes is written):
+
+```bash
+roadmd set MAP-1 tech                       # a state (and an optional note: roadmd set X done "accepted by …")
+roadmd add MAP-2 "The big map" --area UI --milestone M5 --after "MAP-1 HUD-5" --docs "MAP_SPEC" --note "…"
+roadmd edit MAP-2 --title "…" --note "…" --state-note "…" --docs "a · b" --text "a · b"
+roadmd after MAP-2 +NAV-1 -HUD-5            # add / remove what it waits for (also: roadmd with …)
+roadmd move MAP-2 --milestone M6            # or --milestone none, or --area CODE (every stage of the feature moves)
+roadmd rename MAP-2 MAP-3                   # every reference follows; the item keeps was: MAP-2
+roadmd drop MAP-3 "folded into MAP-1"
+roadmd milestone add M7 "Title" --tag … --before M6     roadmd milestone set|move M7 …
+roadmd area add NET "multiplayer"                       roadmd area set NET --title …
+```
+
+`--dry-run` checks an edit without writing it; `--owner` sets an owner-only state (the config's `ownerOnly`), only when
+the owner says so.
+
 Add `--json` for machine-readable output, `--config <file>` to point at a config elsewhere.
 
 Tests: `npm test` (Node's own runner, no dependencies; a small board in `tests/fixture`, an in-memory Encyclist in
@@ -39,6 +57,7 @@ Tests: `npm test` (Node's own runner, no dependencies; a small board in `tests/f
 - `lib/single.mjs` — the single-file format, read into the model (pure).
 - `lib/folder.mjs` — the folder format, read and written (pure).
 - `lib/convert.mjs` — a board moved into the folder format.
+- `lib/edit.mjs` — edits: applied to a copy, the board checked again, only the changes written.
 - `lib/docs.mjs` — embedded documents, document references, review lines and indexes.
 - `lib/analyze.mjs` — the checks, what can be worked on, the ranking (pure).
 - `lib/model.mjs` — one run's model and the page's data.
