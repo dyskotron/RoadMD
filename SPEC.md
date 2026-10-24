@@ -1,6 +1,6 @@
 # roadmd: spec
 
-> Status: **draft 0.3** (2026-10-24). Matej moved it from a local file tool to a shared remote one: decisions 11-15.
+> Status: **draft 0.4** (2026-10-24). Matej moved it from a local file tool to a shared remote one: decisions 11-17.
 > Step 1 built (read-only tool on today's single-file board, proved on ShooterReborn); the plan below is the new one.
 
 A very small Jira for working with AI agents. The board is a set of small markdown documents stored next to the
@@ -42,7 +42,21 @@ process lives in its config.
     offers its rules as agent tools (MCP over HTTP: check, next, show, set a state, add, move, rename, drop), and the
     page shows anything an agent left broken.
 
+16. **Items are Encyclist entities** (Matej, 2026-10-24) where the project uses Encyclist (github.com/hex-clawd/encyclist,
+    live at encyclist.fly.dev with real data): entity types `roadmap_item` (key, title, state, state_note, area,
+    milestone, after, with, body), `roadmap_milestone` (key, title, tag, body, order) and `roadmap_area` (key, title,
+    intro, order), defined by roadmd on first use; dependencies are fields of the item (one record, one write); links
+    from an item to the documents describing it are graph relationships `documented_by` (item → doc), so a document
+    shows its items. Changes go through `ec_entity_update` (only the fields named), so one item can't break another.
+    The same model is markdown files in a git folder for projects without Encyclist (*The format*).
+17. **Encyclist gets what roadmd needs** (Matej: changes made locally first; the live data backed up and the
+    migration proven on a copy before anything is deployed): API key roles (an owner role for owner-only
+    transitions), a conditional update (change only if unchanged since a given `updated_at`), and the audit log
+    keeping an entity change's before and after.
+
 ## The format
+
+For the git-folder adapter (the Encyclist adapter stores the same fields as entities, decision 16).
 
 The board document (`_board.md` in the board's folder):
 
